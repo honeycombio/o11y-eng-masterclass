@@ -1,0 +1,4 @@
+/session-1-fundamentals/otel-quickstart/otel-quickstart
+/session-1-fundamentals/seed-sample-service/seed-sample-service
+/session-1-fundamentals/instrumentation-traps/**/before/before
+/session-1-fundamentals/instrumentation-traps/**/after/after
