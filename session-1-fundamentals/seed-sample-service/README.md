@@ -49,14 +49,22 @@ Query the same dataset three ways, per the slides:
   `WHERE error = true` as a field, not a status code.
 - Attributes are drawn from the same four categories as the rest of the
   session: identity (`user.id`, `user.type`), request/execution
-  (`http.request.method`, `http.route`), outcome
+  (`http.request.method`, `http.route`, `url.path`), outcome
   (`http.response.status_code`, `error`, `error.type`), and service/code
-  context (`service.version`, `deployment.environment`).
-- `user.type` (values `free`/`premium`/`enterprise`) matches the book's
-  Chapter 6 naming (Table 6-15) and its example values, not the slide's
-  original "customer.tier" wording — the slide was updated to match.
-- HTTP attribute names follow the current stable OTel semantic conventions
-  (`http.request.method`, `http.response.status_code`) via the `semconv`
-  package, matching both the book (Chapter 6) and what `otelhttp` v0.69+
-  emits automatically in `otel-quickstart` — checked directly against the
-  book text and the `otelhttp` source, not assumed.
+  context (`service.version`, `service.environment`).
+- Attribute names follow the book's Chapter 6 tables where the book and the
+  deck's original wording disagreed:
+  - `user.type` with values `free`/`premium`/`enterprise` (Table 6-15), not
+    "customer.tier".
+  - `service.environment` (Table 6-1), not `deployment.environment` — which
+    is both absent from the book and the experimental name OTel has since
+    renamed to `deployment.environment.name`.
+- HTTP attribute names use the current stable OTel semantic conventions
+  (`http.request.method`, `http.response.status_code`, `url.path`) via the
+  `semconv` package, matching both the book and what `otelhttp` v0.69 emits
+  automatically in `otel-quickstart` — checked against the book text and the
+  `otelhttp` source, not assumed.
+- A root checkout event carries ~11–13 fields. That is deliberately about a
+  dozen, matching the deck's claim; it is *not* the "hundreds of attributes"
+  a real well-instrumented service would have per Chapter 6. If you want the
+  demo to argue the wide-events case harder, this is the file to widen.

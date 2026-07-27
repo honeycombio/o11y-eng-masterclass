@@ -89,11 +89,15 @@ func setupTracing(ctx context.Context) (func(context.Context) error, error) {
 
 // simulateCheckout builds one checkout trace starting at start, with
 // attributes drawn from the slide's four categories: identity (user.id,
-// user.type), request/execution (http.request.method, http.route), outcome
-// (http.response.status_code, error, error.type), and service/code context
-// (service.version, deployment.environment). Attribute names follow the
-// book's Chapter 6 tables (e.g. user.type, not the slide's original
-// "customer.tier") for consistency between the two.
+// user.type), request/execution (http.request.method, http.route, url.path),
+// outcome (http.response.status_code, error, error.type), and service/code
+// context (service.version, service.environment).
+//
+// Attribute names follow the book's Chapter 6 tables rather than the deck's
+// original wording: user.type (Table 6-15, not "customer.tier"),
+// service.environment (Table 6-1, not the experimental
+// "deployment.environment" that OTel has since renamed), and url.path
+// (Table 6-8).
 func simulateCheckout(ctx context.Context, rng *rand.Rand, start time.Time) {
 	ctx, root := tracer.Start(ctx, "POST /api/checkout", trace.WithTimestamp(start))
 	cursor := start
@@ -101,10 +105,14 @@ func simulateCheckout(ctx context.Context, rng *rand.Rand, start time.Time) {
 	rootAttrs := []attribute.KeyValue{
 		semconv.HTTPRequestMethodPost,
 		semconv.HTTPRoute("/api/checkout"),
+		semconv.URLPath("/api/checkout"),
 		attribute.String("user.id", fmt.Sprintf("user_%d", rng.Intn(5000))),
 		attribute.String("user.type", weightedTier(rng)),
 		attribute.String("service.version", "1.4.2"),
-		semconv.DeploymentEnvironment("production"),
+		// service.environment rather than deployment.environment: it's what the
+		// book's Table 6-1 uses, and OTel has renamed its own experimental
+		// deployment.environment to deployment.environment.name since.
+		attribute.String("service.environment", "production"),
 	}
 
 	cursor = runStep(ctx, cursor, "auth", jitter(rng, 5*time.Millisecond, 15*time.Millisecond), nil, false)
