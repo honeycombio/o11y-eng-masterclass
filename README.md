@@ -31,6 +31,27 @@ setup," which are "live demo," and which are lab/workshop material.
   a different key from the one above
 - Terraform 1.5+ (optional; every Honeycomb object also has a shell-script path)
 
-Run `make verify` to build, vet, test, and format-check every module. The repo
-root is a Go workspace over several per-demo modules rather than a module
-itself, so use the Makefile rather than `go build ./...` from here.
+## Verifying
+
+```bash
+make verify      # gofmt, build, vet, test across every module
+make vulncheck   # govulncheck per module
+make tidy-check  # fails if go.mod/go.sum are not tidy
+```
+
+The repo root is a Go workspace (`go.work`) over several per-demo modules rather
+than a module itself, so use the Makefile rather than `go build ./...` here.
+
+CI ([`.circleci/config.yml`](.circleci/config.yml)) runs all of the above plus
+`terraform fmt`/`validate` and `shellcheck`. Two things it is specifically there
+to catch, because both have already happened once:
+
+- **Dropped spans.** The seeders' delivery tests stand up an in-process OTLP
+  receiver and assert every generated span actually arrives. A seeder that
+  flushed only at the end silently lost ~95% of its data while exiting zero,
+  and no unit test noticed — the traces were built correctly, they just never
+  landed. Each delivery test also asserts its own seed volume exceeds the span
+  queue, since below that threshold it would pass on broken code.
+- **Dependency drift.** A module added after a security bump resolved gRPC back
+  down to the vulnerable version, because indirect dependencies track the module
+  graph minimum. `vulncheck` and `tidy-check` catch that class.

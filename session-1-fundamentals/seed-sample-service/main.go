@@ -27,6 +27,11 @@ import (
 
 const serviceName = "sample-service"
 
+// maxQueueSize is the BatchSpanProcessor queue depth. Named rather than inlined
+// because delivery_test.go asserts against it: a test seeding fewer spans than
+// this cannot detect a dropped-span regression at all.
+const maxQueueSize = 8192
+
 var tracer = otel.Tracer(serviceName)
 
 func main() {
@@ -106,7 +111,7 @@ func setupTracing(ctx context.Context) (*sdktrace.TracerProvider, error) {
 		// A queue well above the 2048 default, so a chunk never comes close to
 		// overflowing it even if an export is briefly slow.
 		sdktrace.WithBatcher(exporter,
-			sdktrace.WithMaxQueueSize(8192),
+			sdktrace.WithMaxQueueSize(maxQueueSize),
 			sdktrace.WithMaxExportBatchSize(1024),
 		),
 		sdktrace.WithResource(res),
