@@ -1,4 +1,4 @@
-# Session 2: Feedback Loops — Observability as the Connective Tissue of Delivery
+# Session 2: Feedback Loops — Observability Connects Code to Delivery
 
 Code accompanying Masterclass 2. See
 [`../masterclass-curriculum-45min.md`](../masterclass-curriculum-45min.md) for

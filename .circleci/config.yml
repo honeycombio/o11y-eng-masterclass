@@ -39,12 +39,12 @@ commands:
     steps:
       - restore_cache:
           keys:
-            - v1-go-mod-{{ checksum "session-1-fundamentals/otel-quickstart/go.sum" }}-{{ checksum "session-1-fundamentals/seed-sample-service/go.sum" }}-{{ checksum "session-1-fundamentals/instrumentation-traps/go.sum" }}-{{ checksum "session-2-feedback-loops/go.sum" }}
+            - v1-go-mod-{{ checksum "session-1-fundamentals/otel-quickstart/go.sum" }}-{{ checksum "session-1-fundamentals/seed-sample-service/go.sum" }}-{{ checksum "session-1-fundamentals/instrumentation-traps/go.sum" }}-{{ checksum "session-2-feedback-loops/go.sum" }}-{{ checksum "session-3-business-case/go.sum" }}
             - v1-go-mod-
   save_go_cache:
     steps:
       - save_cache:
-          key: v1-go-mod-{{ checksum "session-1-fundamentals/otel-quickstart/go.sum" }}-{{ checksum "session-1-fundamentals/seed-sample-service/go.sum" }}-{{ checksum "session-1-fundamentals/instrumentation-traps/go.sum" }}-{{ checksum "session-2-feedback-loops/go.sum" }}
+          key: v1-go-mod-{{ checksum "session-1-fundamentals/otel-quickstart/go.sum" }}-{{ checksum "session-1-fundamentals/seed-sample-service/go.sum" }}-{{ checksum "session-1-fundamentals/instrumentation-traps/go.sum" }}-{{ checksum "session-2-feedback-loops/go.sum" }}-{{ checksum "session-3-business-case/go.sum" }}
           paths:
             - /home/circleci/go/pkg/mod
 

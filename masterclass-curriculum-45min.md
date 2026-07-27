@@ -11,7 +11,7 @@ These sessions use Honeycomb as the reference implementation for the demos; the 
 **Sequence at a glance:**
 
 1. Fundamentals: Wide Events & Instrumentation with OTel
-2. Feedback Loops: Observability as the Connective Tissue of Delivery
+2. Feedback Loops: Observability Connects Code to Delivery
 3. The Business Case and the Investment Diagnostic
 4. SLIs and SLOs for the Modern Era
 5. What Observability Costs, and How to Make It Cost Less
@@ -52,7 +52,7 @@ Two parts, do them in order. First, load the sample dataset and reconstruct one 
 
 ---
 
-## Masterclass 2: Feedback Loops; Observability as the Connective Tissue of Delivery
+## Masterclass 2: Feedback Loops; Observability Connects Code to Delivery
 
 **Premise:** Observability isn't an ops tool; it's the thing that tells you whether every other practice in your delivery system is working. The work of development isn't done until it's working in production.
 
@@ -80,25 +80,33 @@ Map your own delivery system against Chapter 2's six practices: where are you on
 
 ## Masterclass 3: The Business Case and the Investment Diagnostic
 
-**Premise:** This one is for leaders. Where observability sits in your budget, how to justify the spend, and how to tell whether you're getting what you paid for. Most organisations are paying observability prices for monitoring-level outcomes; this session is how you find out if you're one of them.
+**Premise:** This one is for leaders. Where observability sits in your budget, how to justify the spend, and how to tell whether you're getting what you paid for. Chapter 27 names the failure mode in its own section title: most organisations are paying observability prices for monitoring outcomes. This session is how you find out if you're one of them, on evidence rather than vibes.
 
-**Book mapping:** Chapter 26 (The Business Case for Observability), Chapter 27 (Diagnosing Your Observability Investment), Chapter 28 (The Organizational Shift).
+**Book mapping:** Chapter 17 (Telemetry Management at Scale), Chapter 26 (The Business Case for Observability), Chapter 27 (Diagnosing Your Observability Investment), Chapter 28 (The Organizational Shift).
 
 **Duration:** ~45 minutes
 
 ### What we cover (live, ~45 min)
 
-**Are you paying o11y prices for monitoring outcomes? (15 min).** Five questions any leader can ask their team: can any engineer debug without escalating; how long from "alert fired" to "root cause"; are dashboards used or just comfort blankets; do SLOs drive prioritisation; can you answer "which customers are affected?" in five minutes? If one person writes 80% of the queries, you have a knowledge bottleneck, not an observability practice. I'll demo Honeycomb's self-telemetry to show what "who's actually querying" looks like in practice.
+**The five tests (16 min, two of them live).** Chapter 28's diagnostic, and the spine of this session: *Recognizing Legacy Masquerading as Modern Observability*. Five named tests, each with a legacy-versus-modern contrast, and the framing is deliberate — "not feelings or suspicions. Evidence."
 
-**The business case (18 min).** Chapter 26, with numbers for your CFO. Cost of a P1 incident isn't just the outage window; it's post-mortem time, churn risk, and opportunity cost. Worked example: SLA breach at US$10k/hour, 45-minute MTTD with monitoring versus 8-minute with trace-driven analysis. Deploy frequency is a leading indicator; teams that can observe production confidently deploy more often, and that's a causal relationship, not a coincidence. The rework-cost anti-pattern: how much engineering time goes into incidents that could have been prevented or resolved faster? Measure observability cost against the engineers it makes effective, not as an isolated line item.
+1. **The Ownership Test.** "After you merge code, how do you know whether it is working in production?" The real question underneath is how much heroism you demand of an engineer just to understand their own change. If the loop doesn't exist, you're pouring water into a leaky bucket.
+2. **The Two-or-Three People Test.** Do engineers open their tools, or turn and ask the two or three people who can use them? Modern looks like 60–80% investigating independently. Legacy looks like a structural single point of failure who gets pulled into everything and then burns out. *Live:* I'll run this against Honeycomb's own Activity Log — the `query_results` dataset that exists on every Honeycomb team — and break query volume down by source and by person. The shape of that second result is the diagnosis, and every attendee can run it on their own team.
+3. **The Mystery Test.** "What's something weird about production that we just accept?" Mysteries that persist aren't mysteries; they're the shape of your blindness. Cheap proxies: grep chat for "just does that sometimes", count postmortems with unknown root cause, look for runbooks that say restart and hope.
+4. **The Arbitrary Question Test.** *Live, and the demo I care most about.* The book supplies the question: "all failed checkout attempts from mobile users in California using version 2.3.1 of the app during lunch hour over the past week." I'll answer it in under a minute against a dataset that was not built for it — ~28 attributes wide, of which the question needs four. Monitoring answers the questions you predicted; observability answers the ones you didn't.
+5. **The Deployment Confidence Test.** "How much fear is there around deployments?" Read-only Fridays and Change Advisory Boards are not process, they're a confession. Engineers aren't afraid of deploying; they're afraid of not knowing.
 
-**Governance and the organisational shift (12 min).** Chapters 27 and 28. The difference between a centralised team that owns everything (congratulations, you're the bottleneck) and a platform team that makes good observability the path of least resistance: a small platform team owns the integration, the ontology and conventions (Chapter 17), and the sampling policy; every product team owns its own instrumentation. The anti-pattern to avoid is one person who knows how to write queries; that's a single point of failure, and it's remarkably common.
+The results are not a scorecard. They're "evidence that cannot be dismissed as opinion. Language for a fight that is already underway."
+
+**The business case, one loop at a time (14 min).** Chapter 26 picks up exactly where Masterclass 2 left off: there are two feedback loops, and they need separate arguments. The *operational* case is the familiar one — incidents, escalations, time to resolve. The *developer learning* case is the bigger and worse-made one. Notice how much of your existing budget already tries to buy it indirectly: CI/CD, test infrastructure, feature flags, experimentation platforms, internal developer platforms. That category is enormous because engineering time is expensive. So why do most organisations see only modest gains from it? Because those tools improve one part of the system and leave the feedback step weak, and "in the absence of learning, all you have is activity." Chaos engineering without attribution is just chaos. Feature flags without validation are a trust-fall. Progressive delivery without per-cohort regression detection is a slower pipeline with the same uncertainty. I'll show the arithmetic of the current state live — incident labour, escalation drag, unplanned work — and be honest that the improvement percentages are assumptions rather than findings. Chapter 26 gives cited public figures for latency and revenue (Amazon at 100ms costing 1% of sales, Walmart, Staples) and then says plainly that turning this into monetary estimates is hard. I'd rather hand you a defensible argument than a confident number that dies under questioning.
+
+**Governance, ontology, and the organisational shift (12 min).** Chapters 27, 28, and 17. Chapter 27's firefighting trap: an investment posture mismatch where you fund activities instead of learning. Then the part nobody warns you about — Chapter 28 on resistance, and why it's rational rather than obstinate. The organisational immune response is real: committees form to evaluate what you already know doesn't work, pilots get quietly starved and then declared failures, success criteria drift until the current state qualifies. Vendors fight for contracts, existing teams fight for professional identity, leadership avoids admitting money went to the wrong things. So you build a coalition — find the people whose pain is immediate, and honour the heroes who held it together, because the Two-or-Three People Test names them and you need them as allies rather than casualties. On structure: a centralised team that owns everything is a bottleneck with a mandate; a platform team that makes the good path the easy path is not. The platform team owns integration, the ontology and conventions (Chapter 17), and sampling policy; product teams own their own instrumentation.
+
+**What to do on Monday (3 min).** Start small: one domain, full depth. Pave the path so the new way is easier than the old way. Then rerun the five tests and show the difference — which is why the diagnostic is a worksheet you keep rather than a slide you saw.
 
 ### Async lab (self-serve)
 
-Build a one-page business case for your own org using three real numbers: current MTTR, deploy frequency, and percentage of incidents that require escalation. Run the five-question diagnostic on your team and note the gaps. No tooling required; this one is a worksheet, and it's the artifact you take into your next budget conversation.
-
----
+Run all five tests on your own organisation using the worksheet in the repo. Three are conversations — go and have them. Two are data: run the Two-or-Three People queries against your own Activity Log and compute distinct queriers as a share of engineers against the book's 60–80% line, then invent an arbitrary question nobody has asked of your production data and time how long it takes to answer, or to establish that it can't be. Then build the one-page case with `cmd/business-case` using three numbers you can actually source: MTTR, incidents per month, and share of engineering time on unplanned work. It shows its arithmetic and will tell you if the investment doesn't pay for itself. Finally, diarise the rerun — Chapter 28 uses these tests twice, and the second run is what turns a plan into evidence.
 
 ## Masterclass 4: SLIs and SLOs for the Modern Era
 
@@ -133,7 +141,7 @@ Write an SLI for a service you own and validate it against historical data in th
 
 **Premise:** The sticker shock is real; observability at scale is expensive. But "it's too expensive" is usually a symptom of doing it wrong, not a reason to do less. If you're spending money and getting monitoring outcomes, the fix is better outcomes, not a smaller bill.
 
-**Book mapping:** Chapter 13 (Efficient Data Storage with Retriever), Chapter 14 (Efficient Data Storage with ClickHouse), Chapter 15 (Cheap and Accurate Enough Sampling), Chapter 16 (Telemetry Management with Pipelines), Chapter 27 (Diagnosing Your Observability Investment).
+**Book mapping:** Chapter 13 (Efficient Data Storage with Retriever), Chapter 14 (Efficient Data Storage with ClickHouse), Chapter 15 (Cheap and Accurate Enough Sampling), Chapter 16 (Telemetry Management with Pipelines), Chapter 27 (Diagnosing Your Observability Investment), Chapter 29 (Build Versus Buy Versus Open Source).
 
 **Duration:** ~45 minutes
 
@@ -183,4 +191,4 @@ Pick whichever domain is closest to your work and instrument one thing: a single
 
 When CI/CD, frontend, backend, and AI systems all emit OTel-compatible telemetry into unified storage, you get a single view of your entire delivery system. A slow build shows up in deploy frequency. A frontend error correlates with a backend trace. An LLM quality regression shows up as an SLO burn before a customer files a ticket. That's not monitoring; that's observability as the central nervous system of how you build and operate software.
 
-**Chapter cross-reference:** MC1 → Ch 1, 4, 5, 6, 7; MC2 → Ch 2, 8, 9, 10, 24, 25; MC3 → Ch 17, 26, 27, 28; MC4 → Ch 11, 12; MC5 → Ch 13, 14, 15, 16, 27; MC6 → Ch 18, 19, 20, 21, 22.
+**Chapter cross-reference:** MC1 → Ch 1, 4, 5, 6, 7; MC2 → Ch 2, 8, 9, 10, 24, 25; MC3 → Ch 17, 26, 27, 28; MC4 → Ch 11, 12; MC5 → Ch 13, 14, 15, 16, 27, 29; MC6 → Ch 18, 19, 20, 21, 22.

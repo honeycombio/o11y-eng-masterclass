@@ -6,7 +6,8 @@ MODULES := \
 	./session-1-fundamentals/otel-quickstart \
 	./session-1-fundamentals/seed-sample-service \
 	./session-1-fundamentals/instrumentation-traps \
-	./session-2-feedback-loops
+	./session-2-feedback-loops \
+	./session-3-business-case
 
 .PHONY: verify build vet test fmt fmt-check tidy
 
