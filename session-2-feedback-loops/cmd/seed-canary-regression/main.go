@@ -201,8 +201,15 @@ func emit(ctx context.Context, req scenario.Request) {
 	cursor := req.Start
 	for _, step := range req.Steps {
 		end := cursor.Add(step.Duration)
+		// No duration attribute here on purpose. A span's duration is already
+		// computed from its start and end timestamps, and Honeycomb surfaces it
+		// as duration_ms — so emitting an attribute by that name shadows the
+		// real field in the one demo that is entirely about reading durations.
+		// Masterclass 1 writes into this same dataset and uses
+		// db.query.duration_ms for a genuinely distinct measurement; a second
+		// spelling of "how long did this take" is exactly the ontology drift
+		// Chapter 7 warns about.
 		_, span := tracer.Start(ctx, step.Name, trace.WithTimestamp(cursor))
-		span.SetAttributes(attribute.Int64("duration_ms", step.Duration.Milliseconds()))
 		span.End(trace.WithTimestamp(end))
 		cursor = end
 	}
