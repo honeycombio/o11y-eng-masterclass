@@ -54,6 +54,23 @@ Same two steps, at your own pace, plus:
   yourself, then review its attribute choices before accepting them — treat
   it like a PR from a junior engineer.
 
+## What auto-instrumentation actually gives you
+
+Verified on the wire (OTLP), `otelhttp` v0.69 puts 12 attributes on the server
+span for free, with zero application code:
+
+`client.address`, `http.request.method`, `http.response.body.size`,
+`http.response.status_code`, `network.peer.address`, `network.peer.port`,
+`network.protocol.version`, `server.address`, `server.port`, `url.path`,
+`url.scheme`, `user_agent.original`
+
+Notably **absent**: `http.route`. This version of `otelhttp` has no
+`WithRouteTag` option, so the matched route template never lands on its own —
+`setRoute()` in `main.go` adds it explicitly. Worth calling out live: it's a
+real instance of Chapter 6's "don't settle for only what your instrumentation
+library gives you by default," and `http.route` is what Masterclass 4's SLI
+filters on.
+
 See [`../instrumentation-traps/`](../instrumentation-traps) for the
 context-propagation and noisy-instrumentation traps mentioned in the slides;
 those aren't part of this service, since they trigger on situations
