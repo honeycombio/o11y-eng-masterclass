@@ -22,6 +22,7 @@ import (
 	"go.opentelemetry.io/otel/sdk/resource"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	semconv "go.opentelemetry.io/otel/semconv/v1.26.0"
+	"go.opentelemetry.io/otel/trace"
 )
 
 const serviceName = "otel-quickstart"
@@ -80,11 +81,23 @@ func setupTracing(ctx context.Context) (func(context.Context) error, error) {
 	return provider.Shutdown, nil
 }
 
+// setRoute records http.route on the span otelhttp already created for this
+// request. otelhttp hands you about a dozen attributes for free, but not the
+// matched route template — a concrete case of Chapter 6's "always review which
+// attributes you get with automatic instrumentation, and don't settle for only
+// what your instrumentation library gives you by default." http.route is also
+// what Masterclass 4's SLI filters on, so it has to be here.
+func setRoute(ctx context.Context, route string) {
+	trace.SpanFromContext(ctx).SetAttributes(semconv.HTTPRoute(route))
+}
+
 func handleHealthz(w http.ResponseWriter, r *http.Request) {
+	setRoute(r.Context(), "/healthz")
 	w.WriteHeader(http.StatusOK)
 }
 
 func handleCheckout(w http.ResponseWriter, r *http.Request) {
+	setRoute(r.Context(), "/api/checkout")
 	orderID := newOrderID()
 
 	processOrder(r.Context(), orderID)
