@@ -1,0 +1,13 @@
+# Copy to terraform.tfvars and set deploy_time to the value that
+# seed-canary-regression printed. terraform.tfvars is gitignored.
+
+# Unix seconds. The seeder prints this; it must match exactly.
+deploy_time = 1785183138
+
+# Dataset slug, not display name.
+# dataset = "sample-service"
+
+# Only needed if you changed the seeder's defaults.
+# canary_version        = "1.5.0"
+# baseline_version      = "1.4.2"
+# review_window_seconds = 14400

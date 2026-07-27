@@ -2,3 +2,12 @@
 /session-1-fundamentals/seed-sample-service/seed-sample-service
 /session-1-fundamentals/instrumentation-traps/**/before/before
 /session-1-fundamentals/instrumentation-traps/**/after/after
+
+# Terraform: keep the lock file (pins provider versions for reproducibility),
+# ignore local state and the provider cache.
+**/.terraform/*
+*.tfstate
+*.tfstate.*
+*.tfvars
+!*.tfvars.example
+crash.log
