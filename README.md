@@ -10,8 +10,8 @@ that session. So far:
 
 - [`session-1-fundamentals/`](session-1-fundamentals) — Wide Events &
   Instrumentation with OTel
-- [`session-2-feedback-loops/`](session-2-feedback-loops) — Observability as the
-  Connective Tissue of Delivery
+- [`session-2-feedback-loops/`](session-2-feedback-loops) — Observability Connects Code
+  to Delivery
 
 ## Delivery model
 

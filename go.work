@@ -5,4 +5,5 @@ use (
 	./session-1-fundamentals/otel-quickstart
 	./session-1-fundamentals/seed-sample-service
 	./session-2-feedback-loops
+	./session-3-business-case
 )
