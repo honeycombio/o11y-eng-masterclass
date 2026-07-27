@@ -50,7 +50,7 @@ You don't need all of them on day one. Chapter 4's principle: fast and close to 
 
 ### Async lab (self-serve)
 
-Two parts, do them in order. First, load the sample dataset and reconstruct one trace three ways: a count of error events, a filtered list of slow spans, and a waterfall; feel the difference between "I can count this" and "I can interrogate this." Second, clone the sample Go or Python service, turn on auto-instrumentation, confirm spans arrive, then add one custom span with three attributes from the four categories and verify it by querying for it. Stretch goal: have an AI assistant scaffold instrumentation for a second endpoint, then review and correct its attribute choices against the session's conventions.
+Two parts, do them in order. First, load the sample dataset and reconstruct one trace three ways: a count of error events, a filtered list of slow spans, and a waterfall; feel the difference between "I can count this" and "I can interrogate this." Second, clone the sample Go service, turn on auto-instrumentation, confirm spans arrive, then add one custom span with three attributes from the four categories and verify it by querying for it. Stretch goal: have an AI assistant scaffold instrumentation for a second endpoint, then review and correct its attribute choices against the session's conventions.
 
 ---
 

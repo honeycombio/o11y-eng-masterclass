@@ -12,6 +12,8 @@ that session. So far:
   Instrumentation with OTel
 - [`session-2-feedback-loops/`](session-2-feedback-loops) — Observability Connects Code
   to Delivery
+- [`session-3-business-case/`](session-3-business-case) — The Business Case and
+  the Investment Diagnostic
 
 ## Delivery model
 
