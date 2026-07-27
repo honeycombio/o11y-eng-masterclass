@@ -1,0 +1,8 @@
+go 1.26.5
+
+use (
+	./session-1-fundamentals/instrumentation-traps
+	./session-1-fundamentals/otel-quickstart
+	./session-1-fundamentals/seed-sample-service
+	./session-2-feedback-loops
+)

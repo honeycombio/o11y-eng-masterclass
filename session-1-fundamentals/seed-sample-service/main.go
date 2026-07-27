@@ -32,7 +32,7 @@ var tracer = otel.Tracer(serviceName)
 func main() {
 	ctx := context.Background()
 
-	shutdown, err := setupTracing(ctx)
+	provider, err := setupTracing(ctx)
 	if err != nil {
 		log.Fatalf("setting up tracing: %v", err)
 	}
@@ -42,20 +42,44 @@ func main() {
 	now := time.Now()
 	rng := rand.New(rand.NewSource(time.Now().UnixNano()))
 
+	// Flush every chunk rather than once at the end. A backfill produces spans
+	// far faster than the exporter ships them, and the BatchSpanProcessor
+	// silently drops whatever overflows its queue — so a single trailing flush
+	// quietly loses most of the data at higher SEED_COUNT values.
+	const chunk = 400
+
 	for i := 0; i < count; i++ {
 		offset := time.Duration(rng.Int63n(int64(window)))
 		simulateCheckout(ctx, rng, now.Add(-offset))
+
+		if (i+1)%chunk == 0 {
+			if err := flush(ctx, provider); err != nil {
+				log.Fatalf("flushing spans after %d traces: %v", i+1, err)
+			}
+		}
 	}
 
-	flushCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
-	defer cancel()
-	if err := shutdown(flushCtx); err != nil {
-		log.Fatalf("flushing spans (is the Collector up? see ../collector): %v", err)
+	if err := flush(ctx, provider); err != nil {
+		log.Fatalf("final flush: %v", err)
+	}
+	if err := provider.Shutdown(ctx); err != nil {
+		log.Fatalf("shutting down tracer provider: %v", err)
 	}
 	log.Printf("seeded %d checkout traces across the last %s into dataset %q", count, window, serviceName)
 }
 
-func setupTracing(ctx context.Context) (func(context.Context) error, error) {
+// flush blocks until the exporter has shipped everything queued so far, so the
+// caller can safely generate the next chunk.
+func flush(ctx context.Context, provider *sdktrace.TracerProvider) error {
+	flushCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	defer cancel()
+	if err := provider.ForceFlush(flushCtx); err != nil {
+		return fmt.Errorf("%w (is the Collector up? see ../collector)", err)
+	}
+	return nil
+}
+
+func setupTracing(ctx context.Context) (*sdktrace.TracerProvider, error) {
 	endpoint := os.Getenv("OTEL_EXPORTER_OTLP_ENDPOINT")
 	if endpoint == "" {
 		endpoint = "localhost:4317"
@@ -79,12 +103,17 @@ func setupTracing(ctx context.Context) (func(context.Context) error, error) {
 	}
 
 	provider := sdktrace.NewTracerProvider(
-		sdktrace.WithBatcher(exporter),
+		// A queue well above the 2048 default, so a chunk never comes close to
+		// overflowing it even if an export is briefly slow.
+		sdktrace.WithBatcher(exporter,
+			sdktrace.WithMaxQueueSize(8192),
+			sdktrace.WithMaxExportBatchSize(1024),
+		),
 		sdktrace.WithResource(res),
 	)
 	otel.SetTracerProvider(provider)
 
-	return provider.Shutdown, nil
+	return provider, nil
 }
 
 // simulateCheckout builds one checkout trace starting at start, with
