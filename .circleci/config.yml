@@ -1,0 +1,125 @@
+version: 2.1
+
+# The repo is a Go workspace (go.work) over several per-demo modules rather than
+# a module itself, so every Go step fans out via the Makefile instead of using
+# `go build ./...` at the root. See Makefile for the module list.
+
+# enable a job when a tag is created (tag create is ignored by default)
+filters_always: &filters_always
+  filters:
+    tags:
+      only: /.*/
+
+matrix_goversions: &matrix_goversions
+  matrix:
+    parameters:
+      goversion: ["26"]
+
+# Default version of Go to use for Go steps. The modules declare go 1.26, so
+# that is the floor; add newer versions to the matrix above as they ship.
+default_goversion: &default_goversion "26"
+
+executors:
+  go:
+    parameters:
+      goversion:
+        type: string
+        default: *default_goversion
+    docker:
+      - image: cimg/go:1.<< parameters.goversion >>
+  terraform:
+    docker:
+      - image: hashicorp/terraform:1.15
+  shell:
+    docker:
+      - image: koalaman/shellcheck-alpine:v0.10.0
+
+commands:
+  restore_go_cache:
+    steps:
+      - restore_cache:
+          keys:
+            - v1-go-mod-{{ checksum "session-1-fundamentals/otel-quickstart/go.sum" }}-{{ checksum "session-1-fundamentals/seed-sample-service/go.sum" }}-{{ checksum "session-1-fundamentals/instrumentation-traps/go.sum" }}-{{ checksum "session-2-feedback-loops/go.sum" }}
+            - v1-go-mod-
+  save_go_cache:
+    steps:
+      - save_cache:
+          key: v1-go-mod-{{ checksum "session-1-fundamentals/otel-quickstart/go.sum" }}-{{ checksum "session-1-fundamentals/seed-sample-service/go.sum" }}-{{ checksum "session-1-fundamentals/instrumentation-traps/go.sum" }}-{{ checksum "session-2-feedback-loops/go.sum" }}
+          paths:
+            - /home/circleci/go/pkg/mod
+
+jobs:
+  # Build, vet, test, and gofmt-check every module. The test suites include the
+  # end-to-end delivery tests, which stand up an in-process OTLP receiver and
+  # assert that every span a seeder generates actually arrives — the regression
+  # that unit tests could not see.
+  verify:
+    parameters:
+      goversion:
+        type: string
+        default: *default_goversion
+    executor:
+      name: go
+      goversion: << parameters.goversion >>
+    steps:
+      - checkout
+      - restore_go_cache
+      - run:
+          name: Check go.mod/go.sum are tidy
+          command: make tidy-check
+      - run:
+          name: Build, vet, test, gofmt
+          command: make verify
+      - save_go_cache
+
+  # Dependency drift is a real failure mode here: session-2 was created after a
+  # security bump and silently resolved gRPC back to the vulnerable version,
+  # because an indirect dependency tracks the module graph minimum.
+  vulncheck:
+    executor: go
+    steps:
+      - checkout
+      - restore_go_cache
+      - run:
+          name: govulncheck
+          command: make vulncheck
+      - save_go_cache
+
+  # Terraform is validated but never planned: `plan` needs credentials and a
+  # remote workspace, and neither belongs in a public repo's CI.
+  terraform_validate:
+    executor: terraform
+    steps:
+      - checkout
+      - run:
+          name: terraform fmt
+          command: terraform -chdir=session-2-feedback-loops/honeycomb-setup/terraform fmt -check -diff -recursive
+      - run:
+          name: terraform init
+          command: terraform -chdir=session-2-feedback-loops/honeycomb-setup/terraform init -backend=false -input=false
+      - run:
+          name: terraform validate
+          command: terraform -chdir=session-2-feedback-loops/honeycomb-setup/terraform validate
+
+  shellcheck:
+    executor: shell
+    steps:
+      - checkout
+      - run:
+          name: shellcheck
+          command: shellcheck session-2-feedback-loops/honeycomb-setup/scripts/*.sh
+
+workflows:
+  ci:
+    jobs:
+      # Merged as a list rather than two `<<:` keys on one mapping: duplicate
+      # merge keys are an error in strict YAML parsers, and where they are
+      # tolerated only one of the two is applied.
+      - verify:
+          <<: [*filters_always, *matrix_goversions]
+      - vulncheck:
+          <<: *filters_always
+      - terraform_validate:
+          <<: *filters_always
+      - shellcheck:
+          <<: *filters_always

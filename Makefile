@@ -31,3 +31,26 @@ fmt-check:
 
 tidy:
 	@for m in $(MODULES); do echo "tidy  $$m"; (cd $$m && go mod tidy) || exit 1; done
+
+.PHONY: vulncheck tidy-check
+
+vulncheck:
+	@for m in $(MODULES); do \
+		echo "vuln  $$m"; \
+		(cd $$m && go run golang.org/x/vuln/cmd/govulncheck@latest ./...) || exit 1; \
+	done
+
+# Fails if go.mod/go.sum are not what `go mod tidy` would produce. Catches
+# dependency drift, including an indirect dep quietly resolving back down to a
+# vulnerable version in the module graph.
+tidy-check:
+	@for m in $(MODULES); do \
+		echo "tidy? $$m"; \
+		cp $$m/go.mod /tmp/go.mod.bak && cp $$m/go.sum /tmp/go.sum.bak; \
+		(cd $$m && GOWORK=off go mod tidy) || exit 1; \
+		if ! diff -q /tmp/go.mod.bak $$m/go.mod >/dev/null || ! diff -q /tmp/go.sum.bak $$m/go.sum >/dev/null; then \
+			echo "  $$m: go.mod/go.sum are not tidy; run 'make tidy' and commit the result"; \
+			cp /tmp/go.mod.bak $$m/go.mod && cp /tmp/go.sum.bak $$m/go.sum; \
+			exit 1; \
+		fi; \
+	done
