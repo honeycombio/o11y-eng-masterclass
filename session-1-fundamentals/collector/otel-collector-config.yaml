@@ -10,7 +10,9 @@ processors:
   batch:
 
 exporters:
-  otlphttp/honeycomb:
+  # otlp_http, not otlphttp: the old spelling is a deprecated alias as of
+  # Collector 0.157.0 and warns on every startup.
+  otlp_http/honeycomb:
     endpoint: https://api.honeycomb.io
     headers:
       x-honeycomb-team: ${env:HONEYCOMB_API_KEY}
@@ -20,4 +22,4 @@ service:
     traces:
       receivers: [otlp]
       processors: [batch]
-      exporters: [otlphttp/honeycomb]
+      exporters: [otlp_http/honeycomb]
