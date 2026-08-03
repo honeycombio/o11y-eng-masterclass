@@ -32,12 +32,29 @@ This is a Go workspace (`go.work`) covering all three Go modules, so
 Nothing here is built from scratch live — steps 1–3 happen before the
 session; the ~45 minutes live is running and querying what's already set up.
 
+### If the Collector won't start
+
+The image is pinned to a known-good version, so the usual causes are local:
+
+- **`address already in use`** — something already holds 4317 or 4318, often a
+  Collector left running from an earlier attempt. `docker compose ps` and
+  `lsof -i :4317`, then `docker compose down` before retrying.
+- **`HONEYCOMB_API_KEY` unset** — Compose fails fast and tells you. If you
+  bypass Compose with a bare `docker run`, you instead get a confusing config
+  error from the exporter's `${env:HONEYCOMB_API_KEY}` lookup, so prefer
+  Compose.
+- **401 `unknown API key`** in the Collector logs — the Collector is fine and
+  your spans reached it; the key is wrong, or it's for the wrong region.
+  Note this is only visible in the Collector's own logs, not in your app's.
+
 ## Live demo run order
 
 1. **One dataset, three ways** (`seed-sample-service`'s data): count/rate,
    filtered search `WHERE error = true`, trace waterfall.
-2. **Auto-instrumentation → custom span** (`otel-quickstart`): show
-   `otelhttp` alone, then add the `process_order` span live.
+2. **Auto, attribute, then span** (`otel-quickstart`), in three beats: show
+   `otelhttp` alone; add `order.id` to the span it already created; then add a
+   `process_order` span, once there's a duration worth measuring on its own.
+   Beats 2 and 3 ship commented out, so `git restore` resets the demo.
 
 ## Async lab (self-serve, ~2 hours — not time-boxed to the live 45 min)
 

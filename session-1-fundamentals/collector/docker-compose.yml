@@ -1,6 +1,9 @@
 services:
   otel-collector:
-    image: otel/opentelemetry-collector-contrib:latest
+    # Pinned deliberately. On :latest, two people running this file on different
+    # days get different binaries — which is how a config that works for one
+    # person fails for another with no diff to point at.
+    image: otel/opentelemetry-collector-contrib:0.157.0
     command: ["--config=/etc/otel-collector-config.yaml"]
     volumes:
       - ./otel-collector-config.yaml:/etc/otel-collector-config.yaml:ro
