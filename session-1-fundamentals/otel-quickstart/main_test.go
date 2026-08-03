@@ -98,22 +98,42 @@ func TestCheckoutTraceShape(t *testing.T) {
 		t.Errorf("http.route on root = %q, want %q", got, "/api/checkout")
 	}
 
-	// Children are allowed (beat 3), but they must hang off the request span.
+	rootOrderID, rootHasOrderID := rootAttrs["order.id"]
+
+	// Children are allowed (beat 3), but each must hang off the request span and
+	// carry order.id itself. Attributes do not inherit down a trace, so a child
+	// without it cannot be filtered or grouped by order — querying order.id
+	// would find the request and not the work done inside it.
 	for _, c := range children {
 		if c.Parent.SpanID() != root.SpanContext.SpanID() {
 			t.Errorf("span %q parented to %s, want the request span %s",
 				c.Name, c.Parent.SpanID(), root.SpanContext.SpanID())
 		}
+
+		var childOrderID string
+		var found bool
 		for _, kv := range c.Attributes {
 			if kv.Key == "order.id" {
-				t.Errorf("order.id found on child span %q; it describes the request, so it belongs on the request span", c.Name)
+				childOrderID, found = kv.Value.String(), true
 			}
+		}
+
+		switch {
+		case found && !rootHasOrderID:
+			t.Errorf("span %q carries order.id but the request span does not; the attribute describes the request, so it belongs there first", c.Name)
+		case rootHasOrderID && !found:
+			t.Errorf("span %q is missing order.id; attributes do not inherit, so this span cannot be sliced by order", c.Name)
+		case found && childOrderID != rootOrderID:
+			t.Errorf("span %q has order.id %q, want %q to match the request span", c.Name, childOrderID, rootOrderID)
 		}
 	}
 
-	if _, ok := rootAttrs["order.id"]; ok {
-		t.Logf("beat 2+ state: order.id on the request span, %d child span(s)", len(children))
-	} else {
+	switch {
+	case rootHasOrderID && len(children) > 0:
+		t.Logf("beat 3 state: order.id on the request span and on %d child span(s)", len(children))
+	case rootHasOrderID:
+		t.Logf("beat 2 state: order.id on the request span, no child spans")
+	default:
 		t.Logf("beat 1 state (as committed): auto-instrumentation only, %d child span(s)", len(children))
 	}
 }

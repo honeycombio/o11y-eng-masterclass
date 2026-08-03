@@ -146,21 +146,27 @@ func handleCheckout(w http.ResponseWriter, r *http.Request) {
 	// enrich(ctx, attribute.String("order.id", orderID))
 	// --- END BEAT 2 ---
 
-	processOrder(ctx)
+	processOrder(ctx, orderID)
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(map[string]string{"order_id": orderID})
 }
 
-// processOrder is beat 3. A span here is justified where the attribute was not:
-// we want processing time as its own measurement, separate from total request
-// duration. That is the question a span answers, and the reason to pay for a
-// second event.
-func processOrder(ctx context.Context) {
+// processOrder is beat 3. A span here is justified where the attribute alone was
+// not: we want processing time as its own measurement, separate from total
+// request duration. That is the question a span answers, and the reason to pay
+// for a second event.
+//
+// order.id goes on this span as well, because attributes do not inherit down a
+// trace. Each span is its own event, so a span you want to filter or group by
+// order has to carry order.id itself — otherwise querying order.id finds the
+// request and not the work done inside it.
+func processOrder(ctx context.Context, orderID string) {
 	// --- BEAT 3: one more span. Uncomment live. ---
 	// ctx, span := tracer.Start(ctx, "process_order")
 	// defer span.End()
+	// enrich(ctx, attribute.String("order.id", orderID))
 	// --- END BEAT 3 ---
 
 	simulateOrderProcessing(ctx)
