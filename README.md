@@ -14,6 +14,8 @@ that session. So far:
   to Delivery
 - [`session-3-business-case/`](session-3-business-case) — The Business Case and
   the Investment Diagnostic
+- [`session-4-slis-slos/`](session-4-slis-slos) — SLIs and SLOs for the Modern
+  Era
 
 ## Delivery model
 
@@ -29,9 +31,11 @@ setup," which are "live demo," and which are lab/workshop material.
 - Go 1.26+
 - Docker (for the local OTel Collector)
 - A Honeycomb API key with send-events permission, for the Collector
-- A Honeycomb configuration key, if you want to create markers/boards/SLOs —
+- A Honeycomb configuration key, if you want to create markers/boards/triggers —
   a different key from the one above
-- Terraform 1.5+ (optional; every Honeycomb object also has a shell-script path)
+- Terraform 1.5+ (optional for sessions 1-3; every Honeycomb object there also
+  has a shell-script path. Session 4's derived-column-and-trigger setup is
+  Terraform-only — see its README for why)
 
 ## Verifying
 
