@@ -1,0 +1,20 @@
+# Copy to terraform.tfvars and set incident_start to the value that
+# seed-sli-service printed. terraform.tfvars is gitignored.
+
+# Unix seconds. The seeder prints this; it must match exactly.
+incident_start = 1785183138
+
+# Required: Honeycomb triggers must have at least one recipient, and there is
+# no safe placeholder.
+trigger_recipient_target = "you@example.com"
+# trigger_recipient_type  = "email"
+
+# Dataset slug, not display name.
+# dataset = "sli-demo-service"
+
+# Only needed if you changed the seeder's defaults.
+# healthy_version         = "1.5.0"
+# buggy_version           = "1.4.2"
+# baseline_window_seconds = 21600
+# burn_window_seconds     = 3600
+# burn_threshold          = 0.90
