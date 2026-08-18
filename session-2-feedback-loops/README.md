@@ -11,6 +11,9 @@ Thinking for Software Delivery).
 
 ## Layout
 
+- [`chapter2-ladder-worksheet.md`](chapter2-ladder-worksheet.md) — **start
+  here for the async lab.** A self-assessment against Chapter 2's six
+  practices, for your own delivery system.
 - [`cmd/seed-canary-regression/`](cmd/seed-canary-regression) — the demo
   dataset. Run before the session.
 - [`internal/scenario/`](internal/scenario) — the scenario itself, with the
@@ -75,8 +78,9 @@ it.
 
 ## Async lab
 
-1. Map your own delivery system against Chapter 2's six practices (0–5): where
-   are you on the ladder, and which practice is the next cheapest win?
+1. Map your own delivery system against Chapter 2's six practices (0–5) using
+   [`chapter2-ladder-worksheet.md`](chapter2-ladder-worksheet.md): where are
+   you on the ladder, and which practice is the next cheapest win?
 2. Recreate the marker and board in your own environment using
    [`honeycomb-setup/`](honeycomb-setup) — either path.
 3. Run the core analysis loop yourself on the seeded data, without looking at

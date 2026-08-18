@@ -76,7 +76,7 @@ Two parts, do them in order. First, load the sample dataset and reconstruct one 
 
 ### Async lab (self-serve)
 
-Map your own delivery system against Chapter 2's six practices: where are you on the ladder, and which practice is the next cheapest win? Then recreate the deploy marker and the review board in your own environment — the repo ships both a shell script and a Terraform config, so pick whichever fits how you work. Run the core analysis loop on the seeded data yourself, cold, without following the demo's path, and time it. Stretch: re-seed with a smaller canary share and find out how small a regression you can still detect. That's the book's "available at 1%" claim, tested rather than taken on faith.
+Map your own delivery system against Chapter 2's six practices using the worksheet in the repo: where are you on the ladder, and which practice is the next cheapest win? Then recreate the deploy marker and the review board in your own environment — the repo ships both a shell script and a Terraform config, so pick whichever fits how you work. Run the core analysis loop on the seeded data yourself, cold, without following the demo's path, and time it. Stretch: re-seed with a smaller canary share and find out how small a regression you can still detect. That's the book's "available at 1%" claim, tested rather than taken on faith.
 
 ---
 
