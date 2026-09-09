@@ -74,10 +74,14 @@ and `collector_config_validate` jobs run through
 [`honeycombio/buildevents-orb`](https://github.com/honeycombio/buildevents-orb),
 sending a real trace of this repo's own pipeline into Honeycomb — see
 [`session-6-every-domain/README.md`](session-6-every-domain/README.md) for what
-that gives (and doesn't give) the CI/CD demo. Three things enable it, with
-different consequences if missing: third-party orbs must be enabled in the
-org's CircleCI Security settings, or CircleCI refuses to process this config
-at all and *no* job runs, not just these; `BUILDEVENT_APIKEY` missing just
-means buildevents writes locally instead of to Honeycomb (every job still
-passes); `BUILDEVENT_CIRCLE_API_TOKEN` missing fails only `otel_watch`, which
-nothing depends on.
+that gives (and doesn't give) the CI/CD demo. Third-party orbs must be enabled
+in the CircleCI org's Security settings, or CircleCI refuses to process this
+config at all and *no* job runs, not just these. `BUILDEVENT_APIKEY` and
+`BUILDEVENT_CIRCLE_API_TOKEN` come from the `Honeycomb Secrets for Public
+Repos` CircleCI context on the upstream `honeycombio` org — if you've forked
+this repo, you won't have access to that context; add those two as your own
+project-level CircleCI env vars instead (or remove the `context:` lines and
+the jobs still run, just without sending anywhere — `BUILDEVENT_APIKEY`
+missing means buildevents writes locally instead of to Honeycomb, every job
+still passes; `BUILDEVENT_CIRCLE_API_TOKEN` missing fails only `otel_watch`,
+which nothing depends on).

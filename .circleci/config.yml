@@ -75,19 +75,25 @@ jobs:
   # exit 1) to lack both, so they're left unwrapped rather than risk
   # breaking those jobs on an assumption.
   #
-  # Three things aren't committed here, with different failure blast radii:
+  # Two things aren't committed here, with different failure blast radii:
   #   - Third-party orbs enabled in this org's CircleCI Security settings.
   #     This is a hard prerequisite for the *entire* pipeline: if it's off,
   #     CircleCI refuses to process this config at all and no job in this
   #     workflow runs, not just the ones below.
-  #   - BUILDEVENT_APIKEY (a Honeycomb send-events key), as a project env
-  #     var. If unset, buildevents falls back to writing events to stdout
-  #     instead of sending them (see honeycombio/buildevents' createEvent) —
-  #     every job below still passes, nothing lands in Honeycomb.
-  #   - BUILDEVENT_CIRCLE_API_TOKEN (a CircleCI personal API token with read
-  #     access to this project), as a project env var. If unset,
-  #     otel_watch's polling errors and that job fails — but nothing
-  #     requires otel_watch, so merge-gating checks stay green regardless.
+  #   - BUILDEVENT_APIKEY and BUILDEVENT_CIRCLE_API_TOKEN, meant to come
+  #     from the "Honeycomb Secrets for Public Repos" CircleCI context
+  #     attached to each job below (see the workflow) rather than fresh
+  #     per-repo secrets. That context already exists org-wide — several
+  #     public honeycombio repos use it for release-time secrets like
+  #     GITHUB_TOKEN — but it hasn't been confirmed (from here) to already
+  #     carry these two exact names; the one other repo found using
+  #     buildevents-orb sets them as plain project env vars instead. If the
+  #     context needs these two added, that's an org-level context edit,
+  #     not a per-repo one. Either way this degrades gracefully: missing
+  #     BUILDEVENT_APIKEY just means buildevents writes locally instead of
+  #     sending (every job below still passes, nothing lands in
+  #     Honeycomb); missing BUILDEVENT_CIRCLE_API_TOKEN fails only
+  #     otel_watch, which nothing requires.
   otel_setup:
     docker:
       - image: cimg/base:stable
@@ -243,24 +249,32 @@ jobs:
 workflows:
   ci:
     jobs:
+      # context is meant to supply BUILDEVENT_APIKEY /
+      # BUILDEVENT_CIRCLE_API_TOKEN — see the otel_setup job comment above
+      # for what's actually confirmed about this vs. assumed.
       - otel_setup:
           <<: *filters_always
+          context: Honeycomb Secrets for Public Repos
       - otel_watch:
           <<: *filters_always
+          context: Honeycomb Secrets for Public Repos
           requires: [otel_setup]
       # Merged as a list rather than two `<<:` keys on one mapping: duplicate
       # merge keys are an error in strict YAML parsers, and where they are
       # tolerated only one of the two is applied.
       - verify:
           <<: [*filters_always, *matrix_goversions]
+          context: Honeycomb Secrets for Public Repos
           requires: [otel_setup]
       - vulncheck:
           <<: *filters_always
+          context: Honeycomb Secrets for Public Repos
           requires: [otel_setup]
       - terraform_validate:
           <<: *filters_always
       - collector_config_validate:
           <<: *filters_always
+          context: Honeycomb Secrets for Public Repos
           requires: [otel_setup]
       - shellcheck:
           <<: *filters_always
