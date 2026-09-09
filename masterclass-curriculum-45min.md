@@ -195,4 +195,4 @@ Pick whichever domain is closest to your work and instrument one thing: a single
 
 When CI/CD, frontend, backend, and AI systems all emit OTel-compatible telemetry into unified storage, you get a single view of your entire delivery system. A slow build shows up in deploy frequency. A frontend error correlates with a backend trace. An LLM quality regression shows up as an SLO burn before a customer files a ticket. That's not monitoring; that's observability as the central nervous system of how you build and operate software.
 
-**Chapter cross-reference:** MC1 → Ch 1, 3, 4, 5, 6, 7; MC2 → Ch 2, 8, 9, 10, 24, 25; MC3 → Ch 17, 23, 26, 27, 28, 31; MC4 → Ch 11, 12; MC5 → Ch 13, 14, 15, 16, 27, 29, 30; MC6 → Ch 18, 19, 20, 21, 22, 32.
+**Chapter cross-reference:** MC1 → Ch 1, 3, 4, 5, 6, 7; MC2 → Ch 2, 8, 9, 10, 24, 25; MC3 → Ch 17, 23, 26, 27, 28, 31; MC4 → Ch 11, 12; MC5 → Ch 13, 14, 15, 16, 27, 29, 30; MC6 → Ch 18, 19, 20, 21, 22.

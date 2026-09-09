@@ -92,7 +92,7 @@ func TestGenerate_ErrorSpikeIsDemoSized(t *testing.T) {
 }
 
 // TestGenerate_OverallSLIStaysHealthy asserts the flip side: blended across
-// the whole 24h window and every user type, the SLI barely moves. That's what
+// the whole 6h window and every user type, the SLI barely moves. That's what
 // lets the session say a 28-day-baseline target wouldn't have caught this on
 // its own — only the short trailing window does.
 func TestGenerate_OverallSLIStaysHealthy(t *testing.T) {
