@@ -39,12 +39,12 @@ commands:
     steps:
       - restore_cache:
           keys:
-            - v1-go-mod-{{ checksum "session-1-fundamentals/otel-quickstart/go.sum" }}-{{ checksum "session-1-fundamentals/seed-sample-service/go.sum" }}-{{ checksum "session-1-fundamentals/instrumentation-traps/go.sum" }}-{{ checksum "session-2-feedback-loops/go.sum" }}-{{ checksum "session-3-business-case/go.sum" }}
+            - v1-go-mod-{{ checksum "session-1-fundamentals/otel-quickstart/go.sum" }}-{{ checksum "session-1-fundamentals/seed-sample-service/go.sum" }}-{{ checksum "session-1-fundamentals/instrumentation-traps/go.sum" }}-{{ checksum "session-2-feedback-loops/go.sum" }}-{{ checksum "session-3-business-case/go.sum" }}-{{ checksum "session-4-slis-slos/go.sum" }}
             - v1-go-mod-
   save_go_cache:
     steps:
       - save_cache:
-          key: v1-go-mod-{{ checksum "session-1-fundamentals/otel-quickstart/go.sum" }}-{{ checksum "session-1-fundamentals/seed-sample-service/go.sum" }}-{{ checksum "session-1-fundamentals/instrumentation-traps/go.sum" }}-{{ checksum "session-2-feedback-loops/go.sum" }}-{{ checksum "session-3-business-case/go.sum" }}
+          key: v1-go-mod-{{ checksum "session-1-fundamentals/otel-quickstart/go.sum" }}-{{ checksum "session-1-fundamentals/seed-sample-service/go.sum" }}-{{ checksum "session-1-fundamentals/instrumentation-traps/go.sum" }}-{{ checksum "session-2-feedback-loops/go.sum" }}-{{ checksum "session-3-business-case/go.sum" }}-{{ checksum "session-4-slis-slos/go.sum" }}
           paths:
             - /home/circleci/go/pkg/mod
 
@@ -86,20 +86,32 @@ jobs:
       - save_go_cache
 
   # Terraform is validated but never planned: `plan` needs credentials and a
-  # remote workspace, and neither belongs in a public repo's CI.
+  # remote workspace, and neither belongs in a public repo's CI. Each session
+  # with a Terraform directory gets its own fmt/init/validate steps here —
+  # session-4 has no shell-script alternative (see its README), so this is
+  # the only CI coverage its Honeycomb setup gets.
   terraform_validate:
     executor: terraform
     steps:
       - checkout
       - run:
-          name: terraform fmt
+          name: terraform fmt (session-2)
           command: terraform -chdir=session-2-feedback-loops/honeycomb-setup/terraform fmt -check -diff -recursive
       - run:
-          name: terraform init
+          name: terraform init (session-2)
           command: terraform -chdir=session-2-feedback-loops/honeycomb-setup/terraform init -backend=false -input=false
       - run:
-          name: terraform validate
+          name: terraform validate (session-2)
           command: terraform -chdir=session-2-feedback-loops/honeycomb-setup/terraform validate
+      - run:
+          name: terraform fmt (session-4)
+          command: terraform -chdir=session-4-slis-slos/honeycomb-setup/terraform fmt -check -diff -recursive
+      - run:
+          name: terraform init (session-4)
+          command: terraform -chdir=session-4-slis-slos/honeycomb-setup/terraform init -backend=false -input=false
+      - run:
+          name: terraform validate (session-4)
+          command: terraform -chdir=session-4-slis-slos/honeycomb-setup/terraform validate
 
   shellcheck:
     executor: shell
