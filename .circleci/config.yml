@@ -4,6 +4,11 @@ version: 2.1
 # a module itself, so every Go step fans out via the Makefile instead of using
 # `go build ./...` at the root. See Makefile for the module list.
 
+orbs:
+  # Traces this repo's own pipeline into Honeycomb — see the otel_setup job
+  # comment below for what this does and doesn't give you.
+  buildevents: honeycombio/buildevents@0.12.0
+
 # enable a job when a tag is created (tag create is ignored by default)
 filters_always: &filters_always
   filters:
@@ -18,6 +23,11 @@ matrix_goversions: &matrix_goversions
 # Default version of Go to use for Go steps. The modules declare go 1.26, so
 # that is the floor; add newer versions to the matrix above as they ship.
 default_goversion: &default_goversion "26"
+
+# Shared by every job that calls a buildevents command, so the dataset name
+# can't drift between them.
+buildevents_env: &buildevents_env
+  BUILDEVENT_DATASET: cicd-pipeline-live
 
 executors:
   go:
@@ -39,16 +49,70 @@ commands:
     steps:
       - restore_cache:
           keys:
-            - v1-go-mod-{{ checksum "session-1-fundamentals/otel-quickstart/go.sum" }}-{{ checksum "session-1-fundamentals/seed-sample-service/go.sum" }}-{{ checksum "session-1-fundamentals/instrumentation-traps/go.sum" }}-{{ checksum "session-2-feedback-loops/go.sum" }}-{{ checksum "session-3-business-case/go.sum" }}-{{ checksum "session-4-slis-slos/go.sum" }}-{{ checksum "session-5-cost-sampling/go.sum" }}
+            - v1-go-mod-{{ checksum "session-1-fundamentals/otel-quickstart/go.sum" }}-{{ checksum "session-1-fundamentals/seed-sample-service/go.sum" }}-{{ checksum "session-1-fundamentals/instrumentation-traps/go.sum" }}-{{ checksum "session-2-feedback-loops/go.sum" }}-{{ checksum "session-3-business-case/go.sum" }}-{{ checksum "session-4-slis-slos/go.sum" }}-{{ checksum "session-5-cost-sampling/go.sum" }}-{{ checksum "session-6-every-domain/go.sum" }}
             - v1-go-mod-
   save_go_cache:
     steps:
       - save_cache:
-          key: v1-go-mod-{{ checksum "session-1-fundamentals/otel-quickstart/go.sum" }}-{{ checksum "session-1-fundamentals/seed-sample-service/go.sum" }}-{{ checksum "session-1-fundamentals/instrumentation-traps/go.sum" }}-{{ checksum "session-2-feedback-loops/go.sum" }}-{{ checksum "session-3-business-case/go.sum" }}-{{ checksum "session-4-slis-slos/go.sum" }}-{{ checksum "session-5-cost-sampling/go.sum" }}
+          key: v1-go-mod-{{ checksum "session-1-fundamentals/otel-quickstart/go.sum" }}-{{ checksum "session-1-fundamentals/seed-sample-service/go.sum" }}-{{ checksum "session-1-fundamentals/instrumentation-traps/go.sum" }}-{{ checksum "session-2-feedback-loops/go.sum" }}-{{ checksum "session-3-business-case/go.sum" }}-{{ checksum "session-4-slis-slos/go.sum" }}-{{ checksum "session-5-cost-sampling/go.sum" }}-{{ checksum "session-6-every-domain/go.sum" }}
           paths:
             - /home/circleci/go/pkg/mod
 
 jobs:
+  # Traces this repo's own CircleCI pipeline into Honeycomb via
+  # honeycombio/buildevents-orb — real spans from a real run of this
+  # pipeline, alongside session 6's synthetic cicd-pipeline dataset.
+  # buildevents predates OTel: it ships its own field names (job_name,
+  # build_num, branch, ...) straight to Honeycomb's classic Events API, not
+  # OTLP or the cicd.pipeline.*/vcs.change.id semconv session 6's seeder
+  # uses — that seeded dataset is what carries the semconv story for
+  # querying. This is real texture on top of it, not a replacement.
+  #
+  # Only wraps jobs confirmed to run on a bash+curl-capable image
+  # (buildevents-orb's commands need both): the go executor (cimg/go) and
+  # the machine executor. terraform_validate and shellcheck run on Alpine
+  # images confirmed (docker run --entrypoint which ... bash/curl, both
+  # exit 1) to lack both, so they're left unwrapped rather than risk
+  # breaking those jobs on an assumption.
+  #
+  # Two things aren't committed here, with different failure blast radii:
+  #   - Third-party orbs enabled in this org's CircleCI Security settings.
+  #     This is a hard prerequisite for the *entire* pipeline: if it's off,
+  #     CircleCI refuses to process this config at all and no job in this
+  #     workflow runs, not just the ones below.
+  #   - BUILDEVENT_APIKEY and BUILDEVENT_CIRCLE_API_TOKEN, meant to come
+  #     from the "Honeycomb Secrets for Public Repos" CircleCI context
+  #     attached to each job below (see the workflow) rather than fresh
+  #     per-repo secrets. That context already exists org-wide — several
+  #     public honeycombio repos use it for release-time secrets like
+  #     GITHUB_TOKEN — but it hasn't been confirmed (from here) to already
+  #     carry these two exact names; the one other repo found using
+  #     buildevents-orb sets them as plain project env vars instead. If the
+  #     context needs these two added, that's an org-level context edit,
+  #     not a per-repo one. Either way this degrades gracefully: missing
+  #     BUILDEVENT_APIKEY just means buildevents writes locally instead of
+  #     sending (every job below still passes, nothing lands in
+  #     Honeycomb); missing BUILDEVENT_CIRCLE_API_TOKEN fails only
+  #     otel_watch, which nothing requires.
+  otel_setup:
+    docker:
+      - image: cimg/base:stable
+    environment:
+      <<: *buildevents_env
+    steps:
+      - buildevents/start_trace
+
+  # Polls the CircleCI API until every other job finishes, then sends the
+  # root span for the whole pipeline run. Depends on otel_setup for the
+  # cached buildevents binary; nothing depends on this.
+  otel_watch:
+    docker:
+      - image: cimg/base:stable
+    environment:
+      <<: *buildevents_env
+    steps:
+      - buildevents/watch_build_and_finish
+
   # Build, vet, test, and gofmt-check every module. The test suites include the
   # end-to-end delivery tests, which stand up an in-process OTLP receiver and
   # assert that every span a seeder generates actually arrives — the regression
@@ -61,29 +125,41 @@ jobs:
     executor:
       name: go
       goversion: << parameters.goversion >>
+    environment:
+      <<: *buildevents_env
     steps:
+      # checkout runs before with_job_span, not inside it: with_job_span's
+      # own restore_cache (the buildevents binary) populates ~/project/bin
+      # first, and checkout refuses to clone into a non-empty, non-git
+      # directory if it runs after that.
       - checkout
-      - restore_go_cache
-      - run:
-          name: Check go.mod/go.sum are tidy
-          command: make tidy-check
-      - run:
-          name: Build, vet, test, gofmt
-          command: make verify
-      - save_go_cache
+      - buildevents/with_job_span:
+          steps:
+            - restore_go_cache
+            - run:
+                name: Check go.mod/go.sum are tidy
+                command: make tidy-check
+            - run:
+                name: Build, vet, test, gofmt
+                command: make verify
+            - save_go_cache
 
   # Dependency drift is a real failure mode here: session-2 was created after a
   # security bump and silently resolved gRPC back to the vulnerable version,
   # because an indirect dependency tracks the module graph minimum.
   vulncheck:
     executor: go
+    environment:
+      <<: *buildevents_env
     steps:
       - checkout
-      - restore_go_cache
-      - run:
-          name: govulncheck
-          command: make vulncheck
-      - save_go_cache
+      - buildevents/with_job_span:
+          steps:
+            - restore_go_cache
+            - run:
+                name: govulncheck
+                command: make vulncheck
+            - save_go_cache
 
   # Terraform is validated but never planned: `plan` needs credentials and a
   # remote workspace, and neither belongs in a public repo's CI. Each session
@@ -121,9 +197,18 @@ jobs:
       - run:
           name: terraform validate (session-5)
           command: terraform -chdir=session-5-cost-sampling/honeycomb-setup/terraform validate
+      - run:
+          name: terraform fmt (session-6)
+          command: terraform -chdir=session-6-every-domain/honeycomb-setup/terraform fmt -check -diff -recursive
+      - run:
+          name: terraform init (session-6)
+          command: terraform -chdir=session-6-every-domain/honeycomb-setup/terraform init -backend=false -input=false
+      - run:
+          name: terraform validate (session-6)
+          command: terraform -chdir=session-6-every-domain/honeycomb-setup/terraform validate
 
-  # session-1's Collector config is now load-bearing for session 5's demo
-  # (the adaptive_tail_sampling processor and its rules), so it gets the same
+  # session-1's Collector config is now load-bearing for sessions 5 and 6
+  # (adaptive_tail_sampling, redaction, and the logs pipeline), so it gets the same
   # "validated but never actually run" treatment as the Terraform above:
   # `validate` parses and builds the pipeline graph without starting the
   # Collector or needing real credentials. This is a real check, not a
@@ -138,16 +223,20 @@ jobs:
   collector_config_validate:
     machine:
       image: ubuntu-2404:current
+    environment:
+      <<: *buildevents_env
     steps:
       - checkout
-      - run:
-          name: validate session-1's Collector config
-          command: |
-            docker run --rm \
-              -v "$(pwd)/session-1-fundamentals/collector/otel-collector-config.yaml:/etc/otel-collector-config.yaml:ro" \
-              -e HONEYCOMB_API_KEY=dummy-not-used-by-validate \
-              honeycombio/honeycomb-opentelemetry-collector:v0.0.40 \
-              validate --config=/etc/otel-collector-config.yaml
+      - buildevents/with_job_span:
+          steps:
+            - run:
+                name: validate session-1's Collector config
+                command: |
+                  docker run --rm \
+                    -v "$(pwd)/session-1-fundamentals/collector/otel-collector-config.yaml:/etc/otel-collector-config.yaml:ro" \
+                    -e HONEYCOMB_API_KEY=dummy-not-used-by-validate \
+                    honeycombio/honeycomb-opentelemetry-collector:v0.0.40 \
+                    validate --config=/etc/otel-collector-config.yaml
 
   shellcheck:
     executor: shell
@@ -160,16 +249,32 @@ jobs:
 workflows:
   ci:
     jobs:
+      # context is meant to supply BUILDEVENT_APIKEY /
+      # BUILDEVENT_CIRCLE_API_TOKEN — see the otel_setup job comment above
+      # for what's actually confirmed about this vs. assumed.
+      - otel_setup:
+          <<: *filters_always
+          context: Honeycomb Secrets for Public Repos
+      - otel_watch:
+          <<: *filters_always
+          context: Honeycomb Secrets for Public Repos
+          requires: [otel_setup]
       # Merged as a list rather than two `<<:` keys on one mapping: duplicate
       # merge keys are an error in strict YAML parsers, and where they are
       # tolerated only one of the two is applied.
       - verify:
           <<: [*filters_always, *matrix_goversions]
+          context: Honeycomb Secrets for Public Repos
+          requires: [otel_setup]
       - vulncheck:
           <<: *filters_always
+          context: Honeycomb Secrets for Public Repos
+          requires: [otel_setup]
       - terraform_validate:
           <<: *filters_always
       - collector_config_validate:
           <<: *filters_always
+          context: Honeycomb Secrets for Public Repos
+          requires: [otel_setup]
       - shellcheck:
           <<: *filters_always

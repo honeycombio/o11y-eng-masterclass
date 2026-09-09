@@ -9,7 +9,8 @@ MODULES := \
 	./session-2-feedback-loops \
 	./session-3-business-case \
 	./session-4-slis-slos \
-	./session-5-cost-sampling
+	./session-5-cost-sampling \
+	./session-6-every-domain
 
 .PHONY: verify build vet test fmt fmt-check tidy
 
@@ -25,10 +26,10 @@ test:
 	@for m in $(MODULES); do echo "test  $$m"; (cd $$m && go test ./...) || exit 1; done
 
 fmt:
-	@gofmt -w session-1-fundamentals session-2-feedback-loops session-3-business-case session-4-slis-slos session-5-cost-sampling
+	@gofmt -w session-1-fundamentals session-2-feedback-loops session-3-business-case session-4-slis-slos session-5-cost-sampling session-6-every-domain
 
 fmt-check:
-	@out=$$(gofmt -l session-1-fundamentals session-2-feedback-loops session-3-business-case session-4-slis-slos session-5-cost-sampling); \
+	@out=$$(gofmt -l session-1-fundamentals session-2-feedback-loops session-3-business-case session-4-slis-slos session-5-cost-sampling session-6-every-domain); \
 	if [ -n "$$out" ]; then echo "gofmt needed:"; echo "$$out"; exit 1; fi; \
 	echo "gofmt clean"
 

@@ -18,6 +18,8 @@ that session. So far:
   Era
 - [`session-5-cost-sampling/`](session-5-cost-sampling) — What Observability
   Costs, and How to Make It Cost Less
+- [`session-6-every-domain/`](session-6-every-domain) — Observability in
+  Every Domain
 
 ## Delivery model
 
@@ -36,7 +38,9 @@ setup," which are "live demo," and which are lab/workshop material.
 - A Honeycomb configuration key, if you want to create markers/boards/triggers —
   a different key from the one above
 - Terraform 1.5+ (optional for sessions 1-3; every Honeycomb object there also
-  has a shell-script path. Sessions 4 and 5 are Terraform-only)
+  has a shell-script path. Sessions 4, 5, and 6 are Terraform-only)
+- Claude Code, with telemetry enabled, for session 6's LLM demo — see that
+  session's README
 
 ## Verifying
 
@@ -50,8 +54,8 @@ The repo root is a Go workspace (`go.work`) over several per-demo modules rather
 than a module itself, so use the Makefile rather than `go build ./...` here.
 
 CI ([`.circleci/config.yml`](.circleci/config.yml)) runs all of the above plus
-`terraform fmt`/`validate`, `shellcheck`, and — since session 5 added a
-processor to session-1's shared Collector config — `otelcol validate` against
+`terraform fmt`/`validate`, `shellcheck`, and — since sessions 5 and 6 added
+processors to session-1's shared Collector config — `otelcol validate` against
 that config. Two things it is specifically there to catch, because both have
 already happened once:
 
@@ -64,3 +68,20 @@ already happened once:
 - **Dependency drift.** A module added after a security bump resolved gRPC back
   down to the vulnerable version, because indirect dependencies track the module
   graph minimum. `vulncheck` and `tidy-check` catch that class.
+
+CI also traces itself: `otel_setup`/`otel_watch` plus the `verify`, `vulncheck`,
+and `collector_config_validate` jobs run through
+[`honeycombio/buildevents-orb`](https://github.com/honeycombio/buildevents-orb),
+sending a real trace of this repo's own pipeline into Honeycomb — see
+[`session-6-every-domain/README.md`](session-6-every-domain/README.md) for what
+that gives (and doesn't give) the CI/CD demo. Third-party orbs must be enabled
+in the CircleCI org's Security settings, or CircleCI refuses to process this
+config at all and *no* job runs, not just these. `BUILDEVENT_APIKEY` and
+`BUILDEVENT_CIRCLE_API_TOKEN` come from the `Honeycomb Secrets for Public
+Repos` CircleCI context on the upstream `honeycombio` org — if you've forked
+this repo, you won't have access to that context; add those two as your own
+project-level CircleCI env vars instead (or remove the `context:` lines and
+the jobs still run, just without sending anywhere — `BUILDEVENT_APIKEY`
+missing means buildevents writes locally instead of to Honeycomb, every job
+still passes; `BUILDEVENT_CIRCLE_API_TOKEN` missing fails only `otel_watch`,
+which nothing depends on).
