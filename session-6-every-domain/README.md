@@ -133,6 +133,9 @@ supplement, not the primary demo.
 
 **CI/CD pipelines** (10 min): show the build-P95 trigger firing (or about
 to), click into `cicd_flaky_tests` to find the one flaky test case by name.
+Then `cicd_flaky_tests_by_branch`: the same failure rate, split trunk versus
+PR branches, which is the blast-radius point — one author's problem on a PR
+branch, everyone's on the trunk.
 
 **Performance engineering** (10 min): `perf_slow_queries` ranks the bimodal
 and long-tail queries above the three fast ones — then `perf_query_heatmap`
