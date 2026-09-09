@@ -4,8 +4,8 @@
 #    no breakdown. What the trigger below watches — same "one unambiguous
 #    number" reasoning as session 4's burn_trigger_sli.
 #  - cicd_flaky_tests: COUNT of test-case spans with error = true, broken
-#    down by test.name. Chapter 18's "one span per test case to query
-#    flakiness" made concrete: the flaky test case (see
+#    down by test.name. Chapter 18's job-and-step ontology, extended one
+#    level to per-test-case spans: the flaky test case (see
 #    internal/cicdscenario.FlakyTestName) is the only row that ever appears.
 
 data "honeycombio_query_specification" "cicd_build_p95" {
@@ -64,6 +64,48 @@ resource "honeycombio_query_annotation" "cicd_flaky_tests" {
   query_id    = honeycombio_query.cicd_flaky_tests.id
   name        = "CI/CD: failed test cases by name"
   description = "One span per test case, filtered to failures. The flaky test case is the only row — everything else always passes."
+}
+
+# The same failures, split by the branch that ran them. Chapter 18 calls the
+# repository and branch a pipeline's most important telemetry precisely
+# because this breakdown changes the conclusion: an identical failure rate is
+# one author's problem on a PR branch and everyone's on the trunk, so the
+# split is what turns a flakiness number into a prioritisation argument.
+data "honeycombio_query_specification" "cicd_flaky_tests_by_branch" {
+  time_range = 14 * 24 * 3600 # 14d, matching the seeder's Window
+  breakdowns = ["vcs.ref.head.name"]
+
+  calculation {
+    op = "COUNT"
+  }
+
+  filter {
+    column = "error"
+    op     = "="
+    value  = true
+  }
+
+  filter {
+    column = "test.name"
+    op     = "="
+    value  = "TestPaymentRetryIsIdempotent" # cicdscenario.FlakyTestName
+  }
+
+  order {
+    op = "COUNT"
+  }
+}
+
+resource "honeycombio_query" "cicd_flaky_tests_by_branch" {
+  dataset    = var.cicd_dataset
+  query_json = data.honeycombio_query_specification.cicd_flaky_tests_by_branch.json
+}
+
+resource "honeycombio_query_annotation" "cicd_flaky_tests_by_branch" {
+  dataset     = var.cicd_dataset
+  query_id    = honeycombio_query.cicd_flaky_tests_by_branch.id
+  name        = "CI/CD: flaky-test failures by branch"
+  description = "The flaky test's failures split by vcs.ref.head.name. Roughly a quarter of runs are on the trunk (cicdscenario.MainBranchShare), and the failure rate is branch-independent by construction — so the two rows differ in volume, not in rate. The point is blast radius, not a branch-specific bug."
 }
 
 # The free-tier stand-in for a build-time alert: a plain threshold Trigger

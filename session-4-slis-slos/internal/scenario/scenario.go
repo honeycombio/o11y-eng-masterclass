@@ -6,7 +6,7 @@
 // polled far more often than anyone calls the real endpoint. Health checks
 // always succeed. That imbalance is the point: Chapter 11's HTTP-API SLI is
 //
-//	count(status_code < 500) / count(*) where route != '/healthz'
+//	count(status_code < 400) / count(*) where route != '/healthz'
 //
 // and this dataset exists to make the "where route != '/healthz'" clause
 // matter. Leave it out and the healthy healthz traffic dilutes a real

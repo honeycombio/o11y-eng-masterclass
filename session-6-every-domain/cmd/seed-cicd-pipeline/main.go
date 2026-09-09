@@ -159,6 +159,7 @@ func emitRun(ctx context.Context, run cicdscenario.Run) {
 		semconv.CICDPipelineName("masterclass-app-ci"),
 		attribute.String("cicd.pipeline.run.id", run.RunID),
 		semconv.VCSChangeID(strconv.Itoa(run.PRNumber)),
+		semconv.VCSRefHeadName(run.Branch),
 	)
 	if run.Result == cicdscenario.ResultFailure {
 		root.SetAttributes(semconv.CICDPipelineResultFailure)

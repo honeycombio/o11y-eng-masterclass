@@ -8,7 +8,7 @@ the session outline.
 14 (Efficient Data Storage with ClickHouse), Chapter 15 (Cheap and Accurate
 Enough Sampling), Chapter 16 (Telemetry Management with Pipelines), Chapter 27
 (Diagnosing Your Observability Investment), Chapter 29 (Build Versus Buy
-Versus Open Source), Chapter 30 (The Art and Science of Vendor Partnerships).
+(Versus Open Source)), Chapter 30 (The Art and Science of Vendor Partnerships).
 
 This session's live demo covers Chapter 15's sampling section only — the
 curriculum's other MC5 material (storage engines, pipelines, vendor

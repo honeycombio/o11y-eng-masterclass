@@ -61,11 +61,11 @@ too — the old marker stays, a new one is added.
 ## What gets created
 
 1. **`sli_good_request`** (`honeycombio_derived_column`) — the SLI itself:
-   `IF(LT($http.response.status_code, 500), 1, 0)`. One boolean-as-1/0 column,
+   `IF(LT($http.response.status_code, 400), 1, 0)`. One boolean-as-1/0 column,
    reused by every query below.
 2. **`baseline_sli`** (query) — `AVG(sli_good_request)` over a steady-state
    window, filtered to `route != '/healthz'`. The workshop's stand-in for a
-   real SLO's 28-day baseline — see `variables.tf` for why the window here is
+   real SLO's 30-day baseline — see `variables.tf` for why the window here is
    hours, not days.
 3. **`burn_trigger_sli`** (query) — the same `AVG()`, over the trailing burn
    window, no breakdown. Deliberately separate from the breakdown query below:

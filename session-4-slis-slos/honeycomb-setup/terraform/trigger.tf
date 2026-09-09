@@ -1,8 +1,9 @@
 # The free-tier stand-in for a burn-alert: a plain threshold Trigger over the
 # trailing-window SLI query, rather than a honeycombio_burn_alert against a
 # real honeycombio_slo (neither resource is usable on Honeycomb Free — see
-# ../../README.md). It approximates Chapter 12's fast-burn window (2% burn in
-# 1 hour pages immediately) as "the trailing hour's success ratio dropped
+# ../../README.md). It approximates the SRE Workbook's fast-burn window (2% of
+# budget in 1 hour), the shape Chapter 12 generalises as a relative burn
+# alert, as "the trailing hour's success ratio dropped
 # below burn_threshold" — real error-budget burn math, not a raw threshold,
 # but close enough to demo the shape of the alert: it fires on the recent
 # window, not on an average since the dawn of the dataset.
