@@ -68,3 +68,16 @@ already happened once:
 - **Dependency drift.** A module added after a security bump resolved gRPC back
   down to the vulnerable version, because indirect dependencies track the module
   graph minimum. `vulncheck` and `tidy-check` catch that class.
+
+CI also traces itself: `otel_setup`/`otel_watch` plus the `verify`, `vulncheck`,
+and `collector_config_validate` jobs run through
+[`honeycombio/buildevents-orb`](https://github.com/honeycombio/buildevents-orb),
+sending a real trace of this repo's own pipeline into Honeycomb — see
+[`session-6-every-domain/README.md`](session-6-every-domain/README.md) for what
+that gives (and doesn't give) the CI/CD demo. Three things enable it, with
+different consequences if missing: third-party orbs must be enabled in the
+org's CircleCI Security settings, or CircleCI refuses to process this config
+at all and *no* job runs, not just these; `BUILDEVENT_APIKEY` missing just
+means buildevents writes locally instead of to Honeycomb (every job still
+passes); `BUILDEVENT_CIRCLE_API_TOKEN` missing fails only `otel_watch`, which
+nothing depends on.

@@ -4,6 +4,11 @@ version: 2.1
 # a module itself, so every Go step fans out via the Makefile instead of using
 # `go build ./...` at the root. See Makefile for the module list.
 
+orbs:
+  # Traces this repo's own pipeline into Honeycomb — see the otel_setup job
+  # comment below for what this does and doesn't give you.
+  buildevents: honeycombio/buildevents@0.12.0
+
 # enable a job when a tag is created (tag create is ignored by default)
 filters_always: &filters_always
   filters:
@@ -18,6 +23,11 @@ matrix_goversions: &matrix_goversions
 # Default version of Go to use for Go steps. The modules declare go 1.26, so
 # that is the floor; add newer versions to the matrix above as they ship.
 default_goversion: &default_goversion "26"
+
+# Shared by every job that calls a buildevents command, so the dataset name
+# can't drift between them.
+buildevents_env: &buildevents_env
+  BUILDEVENT_DATASET: cicd-pipeline-live
 
 executors:
   go:
@@ -49,6 +59,54 @@ commands:
             - /home/circleci/go/pkg/mod
 
 jobs:
+  # Traces this repo's own CircleCI pipeline into Honeycomb via
+  # honeycombio/buildevents-orb — real spans from a real run of this
+  # pipeline, alongside session 6's synthetic cicd-pipeline dataset.
+  # buildevents predates OTel: it ships its own field names (job_name,
+  # build_num, branch, ...) straight to Honeycomb's classic Events API, not
+  # OTLP or the cicd.pipeline.*/vcs.change.id semconv session 6's seeder
+  # uses — that seeded dataset is what carries the semconv story for
+  # querying. This is real texture on top of it, not a replacement.
+  #
+  # Only wraps jobs confirmed to run on a bash+curl-capable image
+  # (buildevents-orb's commands need both): the go executor (cimg/go) and
+  # the machine executor. terraform_validate and shellcheck run on Alpine
+  # images confirmed (docker run --entrypoint which ... bash/curl, both
+  # exit 1) to lack both, so they're left unwrapped rather than risk
+  # breaking those jobs on an assumption.
+  #
+  # Three things aren't committed here, with different failure blast radii:
+  #   - Third-party orbs enabled in this org's CircleCI Security settings.
+  #     This is a hard prerequisite for the *entire* pipeline: if it's off,
+  #     CircleCI refuses to process this config at all and no job in this
+  #     workflow runs, not just the ones below.
+  #   - BUILDEVENT_APIKEY (a Honeycomb send-events key), as a project env
+  #     var. If unset, buildevents falls back to writing events to stdout
+  #     instead of sending them (see honeycombio/buildevents' createEvent) —
+  #     every job below still passes, nothing lands in Honeycomb.
+  #   - BUILDEVENT_CIRCLE_API_TOKEN (a CircleCI personal API token with read
+  #     access to this project), as a project env var. If unset,
+  #     otel_watch's polling errors and that job fails — but nothing
+  #     requires otel_watch, so merge-gating checks stay green regardless.
+  otel_setup:
+    docker:
+      - image: cimg/base:stable
+    environment:
+      <<: *buildevents_env
+    steps:
+      - buildevents/start_trace
+
+  # Polls the CircleCI API until every other job finishes, then sends the
+  # root span for the whole pipeline run. Depends on otel_setup for the
+  # cached buildevents binary; nothing depends on this.
+  otel_watch:
+    docker:
+      - image: cimg/base:stable
+    environment:
+      <<: *buildevents_env
+    steps:
+      - buildevents/watch_build_and_finish
+
   # Build, vet, test, and gofmt-check every module. The test suites include the
   # end-to-end delivery tests, which stand up an in-process OTLP receiver and
   # assert that every span a seeder generates actually arrives — the regression
@@ -61,29 +119,37 @@ jobs:
     executor:
       name: go
       goversion: << parameters.goversion >>
+    environment:
+      <<: *buildevents_env
     steps:
-      - checkout
-      - restore_go_cache
-      - run:
-          name: Check go.mod/go.sum are tidy
-          command: make tidy-check
-      - run:
-          name: Build, vet, test, gofmt
-          command: make verify
-      - save_go_cache
+      - buildevents/with_job_span:
+          steps:
+            - checkout
+            - restore_go_cache
+            - run:
+                name: Check go.mod/go.sum are tidy
+                command: make tidy-check
+            - run:
+                name: Build, vet, test, gofmt
+                command: make verify
+            - save_go_cache
 
   # Dependency drift is a real failure mode here: session-2 was created after a
   # security bump and silently resolved gRPC back to the vulnerable version,
   # because an indirect dependency tracks the module graph minimum.
   vulncheck:
     executor: go
+    environment:
+      <<: *buildevents_env
     steps:
-      - checkout
-      - restore_go_cache
-      - run:
-          name: govulncheck
-          command: make vulncheck
-      - save_go_cache
+      - buildevents/with_job_span:
+          steps:
+            - checkout
+            - restore_go_cache
+            - run:
+                name: govulncheck
+                command: make vulncheck
+            - save_go_cache
 
   # Terraform is validated but never planned: `plan` needs credentials and a
   # remote workspace, and neither belongs in a public repo's CI. Each session
@@ -147,16 +213,20 @@ jobs:
   collector_config_validate:
     machine:
       image: ubuntu-2404:current
+    environment:
+      <<: *buildevents_env
     steps:
-      - checkout
-      - run:
-          name: validate session-1's Collector config
-          command: |
-            docker run --rm \
-              -v "$(pwd)/session-1-fundamentals/collector/otel-collector-config.yaml:/etc/otel-collector-config.yaml:ro" \
-              -e HONEYCOMB_API_KEY=dummy-not-used-by-validate \
-              honeycombio/honeycomb-opentelemetry-collector:v0.0.40 \
-              validate --config=/etc/otel-collector-config.yaml
+      - buildevents/with_job_span:
+          steps:
+            - checkout
+            - run:
+                name: validate session-1's Collector config
+                command: |
+                  docker run --rm \
+                    -v "$(pwd)/session-1-fundamentals/collector/otel-collector-config.yaml:/etc/otel-collector-config.yaml:ro" \
+                    -e HONEYCOMB_API_KEY=dummy-not-used-by-validate \
+                    honeycombio/honeycomb-opentelemetry-collector:v0.0.40 \
+                    validate --config=/etc/otel-collector-config.yaml
 
   shellcheck:
     executor: shell
@@ -169,16 +239,24 @@ jobs:
 workflows:
   ci:
     jobs:
+      - otel_setup:
+          <<: *filters_always
+      - otel_watch:
+          <<: *filters_always
+          requires: [otel_setup]
       # Merged as a list rather than two `<<:` keys on one mapping: duplicate
       # merge keys are an error in strict YAML parsers, and where they are
       # tolerated only one of the two is applied.
       - verify:
           <<: [*filters_always, *matrix_goversions]
+          requires: [otel_setup]
       - vulncheck:
           <<: *filters_always
+          requires: [otel_setup]
       - terraform_validate:
           <<: *filters_always
       - collector_config_validate:
           <<: *filters_always
+          requires: [otel_setup]
       - shellcheck:
           <<: *filters_always

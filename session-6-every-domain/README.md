@@ -13,6 +13,44 @@ performance engineering, and LLM observability. Frontend/mobile is
 slides-only; there's no repo content for it, same as MC4 illustrated some SLI
 formulas without separately seeding them.
 
+## The CI/CD demo also carries a real trace of this repo's own pipeline
+
+Alongside `cmd/seed-cicd-pipeline`'s synthetic dataset, this repo's own
+`.circleci/config.yml` runs `verify`, `vulncheck`, and
+`collector_config_validate` through
+[`honeycombio/buildevents-orb`](https://github.com/honeycombio/buildevents-orb)
+— real spans from a real run of the pipeline you're looking at, not a
+stand-in. It's deliberately smaller scale (one pipeline run at a time, not
+500) and it isn't OTel: `buildevents` predates OTel semconv entirely and
+ships its own field names (`job_name`, `build_num`, `branch`, ...) straight
+to Honeycomb's classic Events API, not `cicd.pipeline.*`/`vcs.change.id` via
+OTLP. `cicdscenario`'s seeded dataset is what carries that semconv story for
+querying live — this is texture on top of it: proof that CI/CD tracing is a
+same-day addition to a pipeline that already exists, using a tool Honeycomb
+shipped years before OTel had CI/CD conventions at all.
+
+`terraform_validate` and `shellcheck` are deliberately left unwrapped —
+both run on Alpine images confirmed (empirically — `docker run --entrypoint
+which ... bash` and `curl`, both exit 1 on both images) to lack the bash
+and curl the orb's commands need.
+
+**Needs, none of which are committed here, with different consequences if
+missing:**
+
+- Third-party orbs enabled in this org's CircleCI Security settings. This
+  one's a hard blocker for the *whole pipeline* — if it's off, CircleCI
+  refuses to process `.circleci/config.yml` at all, so every job fails to
+  even start, not just the ones below. Flip this before merging anything
+  that touches the orb.
+- `BUILDEVENT_APIKEY` (a Honeycomb send-events key), as a project env var.
+  If unset, `buildevents` just writes events to stdout instead of Honeycomb
+  — `otel_setup`, `verify`, `vulncheck`, and `collector_config_validate`
+  all still pass; there's simply no `cicd-pipeline-live` data to look at.
+- `BUILDEVENT_CIRCLE_API_TOKEN` (a CircleCI personal API token with read
+  access to this project), as a project env var. If unset, only
+  `otel_watch` fails (its polling call errors) — nothing requires
+  `otel_watch`, so this doesn't block merge-gating checks.
+
 ## The LLM demo runs on real Claude Code telemetry, read this first
 
 Unlike every other demo in this repo, the LLM demo's primary data source
@@ -133,6 +171,9 @@ supplement, not the primary demo.
 
 **CI/CD pipelines** (10 min): show the build-P95 trigger firing (or about
 to), click into `cicd_flaky_tests` to find the one flaky test case by name.
+If the prerequisites above are set up, also pull up `cicd-pipeline-live` —
+a real trace of this repo's own most recent CI run — as the "and yes, it's
+this easy to add to a pipeline you already have" beat.
 
 **Performance engineering** (10 min): `perf_slow_queries` ranks the bimodal
 and long-tail queries above the three fast ones — then `perf_query_heatmap`
