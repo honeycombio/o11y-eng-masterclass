@@ -122,9 +122,13 @@ jobs:
     environment:
       <<: *buildevents_env
     steps:
+      # checkout runs before with_job_span, not inside it: with_job_span's
+      # own restore_cache (the buildevents binary) populates ~/project/bin
+      # first, and checkout refuses to clone into a non-empty, non-git
+      # directory if it runs after that.
+      - checkout
       - buildevents/with_job_span:
           steps:
-            - checkout
             - restore_go_cache
             - run:
                 name: Check go.mod/go.sum are tidy
@@ -142,9 +146,9 @@ jobs:
     environment:
       <<: *buildevents_env
     steps:
+      - checkout
       - buildevents/with_job_span:
           steps:
-            - checkout
             - restore_go_cache
             - run:
                 name: govulncheck
@@ -216,9 +220,9 @@ jobs:
     environment:
       <<: *buildevents_env
     steps:
+      - checkout
       - buildevents/with_job_span:
           steps:
-            - checkout
             - run:
                 name: validate session-1's Collector config
                 command: |
