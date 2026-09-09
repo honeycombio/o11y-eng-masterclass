@@ -34,7 +34,7 @@ variable "baseline_window_seconds" {
 variable "burn_window_seconds" {
   type        = number
   default     = 3600 # 1h
-  description = "Trailing window for the burn query and the trigger — the fast-burn half of Chapter 12's multi-window default."
+  description = "Trailing window for the burn query and the trigger — the fast-burn half of the SRE Workbook's multi-window pairing, which is the shape Chapter 12 generalises as a relative burn alert."
 }
 
 variable "burn_threshold" {

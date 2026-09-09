@@ -5,8 +5,10 @@
 // One pipeline, masterclass-app-ci, run many times over a two-week window.
 // Each run is a trace: a root pipeline span, four child task spans (checkout,
 // build, test, deploy, in that order), and the test task fans out one child
-// span per test case — Chapter 18's "one span per test case to query
-// flakiness and duration." Attributes follow OTel's own CI/CD semantic
+// span per test case. Chapter 18 stops at the job and step level and tracks
+// flakiness as a percentage of successful retries; per-test-case spans are
+// this session's extension of that ontology, which is what makes flakiness
+// queryable by test name. Attributes follow OTel's own CI/CD semantic
 // conventions (cicd.pipeline.name, cicd.pipeline.task.name,
 // cicd.pipeline.task.run.result, vcs.change.id for the PR number) rather than
 // inventing names, per Chapter 6's own instrumentation checklist. Test-case

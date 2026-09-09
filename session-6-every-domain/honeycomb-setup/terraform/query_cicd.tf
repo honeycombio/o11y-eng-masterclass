@@ -4,8 +4,8 @@
 #    no breakdown. What the trigger below watches — same "one unambiguous
 #    number" reasoning as session 4's burn_trigger_sli.
 #  - cicd_flaky_tests: COUNT of test-case spans with error = true, broken
-#    down by test.name. Chapter 18's "one span per test case to query
-#    flakiness" made concrete: the flaky test case (see
+#    down by test.name. Chapter 18's job-and-step ontology, extended one
+#    level to per-test-case spans: the flaky test case (see
 #    internal/cicdscenario.FlakyTestName) is the only row that ever appears.
 
 data "honeycombio_query_specification" "cicd_build_p95" {
