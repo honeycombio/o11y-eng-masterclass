@@ -39,12 +39,12 @@ commands:
     steps:
       - restore_cache:
           keys:
-            - v1-go-mod-{{ checksum "session-1-fundamentals/otel-quickstart/go.sum" }}-{{ checksum "session-1-fundamentals/seed-sample-service/go.sum" }}-{{ checksum "session-1-fundamentals/instrumentation-traps/go.sum" }}-{{ checksum "session-2-feedback-loops/go.sum" }}-{{ checksum "session-3-business-case/go.sum" }}-{{ checksum "session-4-slis-slos/go.sum" }}
+            - v1-go-mod-{{ checksum "session-1-fundamentals/otel-quickstart/go.sum" }}-{{ checksum "session-1-fundamentals/seed-sample-service/go.sum" }}-{{ checksum "session-1-fundamentals/instrumentation-traps/go.sum" }}-{{ checksum "session-2-feedback-loops/go.sum" }}-{{ checksum "session-3-business-case/go.sum" }}-{{ checksum "session-4-slis-slos/go.sum" }}-{{ checksum "session-5-cost-sampling/go.sum" }}
             - v1-go-mod-
   save_go_cache:
     steps:
       - save_cache:
-          key: v1-go-mod-{{ checksum "session-1-fundamentals/otel-quickstart/go.sum" }}-{{ checksum "session-1-fundamentals/seed-sample-service/go.sum" }}-{{ checksum "session-1-fundamentals/instrumentation-traps/go.sum" }}-{{ checksum "session-2-feedback-loops/go.sum" }}-{{ checksum "session-3-business-case/go.sum" }}-{{ checksum "session-4-slis-slos/go.sum" }}
+          key: v1-go-mod-{{ checksum "session-1-fundamentals/otel-quickstart/go.sum" }}-{{ checksum "session-1-fundamentals/seed-sample-service/go.sum" }}-{{ checksum "session-1-fundamentals/instrumentation-traps/go.sum" }}-{{ checksum "session-2-feedback-loops/go.sum" }}-{{ checksum "session-3-business-case/go.sum" }}-{{ checksum "session-4-slis-slos/go.sum" }}-{{ checksum "session-5-cost-sampling/go.sum" }}
           paths:
             - /home/circleci/go/pkg/mod
 
@@ -112,6 +112,42 @@ jobs:
       - run:
           name: terraform validate (session-4)
           command: terraform -chdir=session-4-slis-slos/honeycomb-setup/terraform validate
+      - run:
+          name: terraform fmt (session-5)
+          command: terraform -chdir=session-5-cost-sampling/honeycomb-setup/terraform fmt -check -diff -recursive
+      - run:
+          name: terraform init (session-5)
+          command: terraform -chdir=session-5-cost-sampling/honeycomb-setup/terraform init -backend=false -input=false
+      - run:
+          name: terraform validate (session-5)
+          command: terraform -chdir=session-5-cost-sampling/honeycomb-setup/terraform validate
+
+  # session-1's Collector config is now load-bearing for session 5's demo
+  # (the adaptive_tail_sampling processor and its rules), so it gets the same
+  # "validated but never actually run" treatment as the Terraform above:
+  # `validate` parses and builds the pipeline graph without starting the
+  # Collector or needing real credentials. This is a real check, not a
+  # formality — it's what caught an invalid OTTL condition path
+  # (`status.code` instead of `span.status.code`) while this config was being
+  # written.
+  #
+  # machine, not docker+image, because honeycombio/honeycomb-opentelemetry-collector
+  # is a scratch-based image with no shell and no git — checkout can't run
+  # inside it, so this job needs a real Docker daemon to run that image
+  # alongside a normal git-capable environment instead.
+  collector_config_validate:
+    machine:
+      image: ubuntu-2404:current
+    steps:
+      - checkout
+      - run:
+          name: validate session-1's Collector config
+          command: |
+            docker run --rm \
+              -v "$(pwd)/session-1-fundamentals/collector/otel-collector-config.yaml:/etc/otel-collector-config.yaml:ro" \
+              -e HONEYCOMB_API_KEY=dummy-not-used-by-validate \
+              honeycombio/honeycomb-opentelemetry-collector:v0.0.40 \
+              validate --config=/etc/otel-collector-config.yaml
 
   shellcheck:
     executor: shell
@@ -132,6 +168,8 @@ workflows:
       - vulncheck:
           <<: *filters_always
       - terraform_validate:
+          <<: *filters_always
+      - collector_config_validate:
           <<: *filters_always
       - shellcheck:
           <<: *filters_always
