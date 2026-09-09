@@ -58,9 +58,9 @@ doesn't matter for those two.
    ~12m baseline and ~22m regressed durations).
 
 **Performance** (`*_perf.tf`):
-1. `perf_slow_queries` — P99(duration_ms) by `db.query.text`. Chapter 20 step 1.
+1. `perf_slow_queries` — P99(duration_ms) by `db.query.text`. Workflow step 1.
 2. `perf_query_heatmap` — HEATMAP(duration_ms), filtered to the bimodal
-   query. Chapter 20 step 2.
+   query. Workflow step 2.
 3. `perf_duration_by_user_type` — AVG(duration_ms) by `user.type`. Step 3.
 4. `perf_duration_amd64` / `perf_duration_arm64` — P50 and P95, filtered by
    `host.arch`. Step 4 — the whole point is that these two look the same.
