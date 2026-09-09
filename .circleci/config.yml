@@ -39,12 +39,12 @@ commands:
     steps:
       - restore_cache:
           keys:
-            - v1-go-mod-{{ checksum "session-1-fundamentals/otel-quickstart/go.sum" }}-{{ checksum "session-1-fundamentals/seed-sample-service/go.sum" }}-{{ checksum "session-1-fundamentals/instrumentation-traps/go.sum" }}-{{ checksum "session-2-feedback-loops/go.sum" }}-{{ checksum "session-3-business-case/go.sum" }}-{{ checksum "session-4-slis-slos/go.sum" }}-{{ checksum "session-5-cost-sampling/go.sum" }}
+            - v1-go-mod-{{ checksum "session-1-fundamentals/otel-quickstart/go.sum" }}-{{ checksum "session-1-fundamentals/seed-sample-service/go.sum" }}-{{ checksum "session-1-fundamentals/instrumentation-traps/go.sum" }}-{{ checksum "session-2-feedback-loops/go.sum" }}-{{ checksum "session-3-business-case/go.sum" }}-{{ checksum "session-4-slis-slos/go.sum" }}-{{ checksum "session-5-cost-sampling/go.sum" }}-{{ checksum "session-6-every-domain/go.sum" }}
             - v1-go-mod-
   save_go_cache:
     steps:
       - save_cache:
-          key: v1-go-mod-{{ checksum "session-1-fundamentals/otel-quickstart/go.sum" }}-{{ checksum "session-1-fundamentals/seed-sample-service/go.sum" }}-{{ checksum "session-1-fundamentals/instrumentation-traps/go.sum" }}-{{ checksum "session-2-feedback-loops/go.sum" }}-{{ checksum "session-3-business-case/go.sum" }}-{{ checksum "session-4-slis-slos/go.sum" }}-{{ checksum "session-5-cost-sampling/go.sum" }}
+          key: v1-go-mod-{{ checksum "session-1-fundamentals/otel-quickstart/go.sum" }}-{{ checksum "session-1-fundamentals/seed-sample-service/go.sum" }}-{{ checksum "session-1-fundamentals/instrumentation-traps/go.sum" }}-{{ checksum "session-2-feedback-loops/go.sum" }}-{{ checksum "session-3-business-case/go.sum" }}-{{ checksum "session-4-slis-slos/go.sum" }}-{{ checksum "session-5-cost-sampling/go.sum" }}-{{ checksum "session-6-every-domain/go.sum" }}
           paths:
             - /home/circleci/go/pkg/mod
 
@@ -121,9 +121,18 @@ jobs:
       - run:
           name: terraform validate (session-5)
           command: terraform -chdir=session-5-cost-sampling/honeycomb-setup/terraform validate
+      - run:
+          name: terraform fmt (session-6)
+          command: terraform -chdir=session-6-every-domain/honeycomb-setup/terraform fmt -check -diff -recursive
+      - run:
+          name: terraform init (session-6)
+          command: terraform -chdir=session-6-every-domain/honeycomb-setup/terraform init -backend=false -input=false
+      - run:
+          name: terraform validate (session-6)
+          command: terraform -chdir=session-6-every-domain/honeycomb-setup/terraform validate
 
-  # session-1's Collector config is now load-bearing for session 5's demo
-  # (the adaptive_tail_sampling processor and its rules), so it gets the same
+  # session-1's Collector config is now load-bearing for sessions 5 and 6
+  # (adaptive_tail_sampling, redaction, and the logs pipeline), so it gets the same
   # "validated but never actually run" treatment as the Terraform above:
   # `validate` parses and builds the pipeline graph without starting the
   # Collector or needing real credentials. This is a real check, not a

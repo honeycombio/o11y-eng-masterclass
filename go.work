@@ -8,4 +8,5 @@ use (
 	./session-3-business-case
 	./session-4-slis-slos
 	./session-5-cost-sampling
+	./session-6-every-domain
 )

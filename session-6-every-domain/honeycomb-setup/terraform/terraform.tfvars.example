@@ -1,0 +1,8 @@
+# Copy to terraform.tfvars and fill in.
+
+# Required: triggers need at least one recipient.
+cicd_trigger_recipient_target = "you@example.com"
+
+# Required: seed-perf-service prints this as the migration completion
+# timestamp. Must match the seeded data.
+perf_migration_start = 1757000000
