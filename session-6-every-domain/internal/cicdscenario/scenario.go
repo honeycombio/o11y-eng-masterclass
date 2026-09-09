@@ -10,8 +10,9 @@
 // this session's extension of that ontology, which is what makes flakiness
 // queryable by test name. Attributes follow OTel's own CI/CD semantic
 // conventions (cicd.pipeline.name, cicd.pipeline.task.name,
-// cicd.pipeline.task.run.result, vcs.change.id for the PR number) rather than
-// inventing names, per Chapter 6's own instrumentation checklist. Test-case
+// cicd.pipeline.task.run.result, vcs.change.id for the PR number,
+// vcs.ref.head.name for the branch) rather than inventing names, per
+// Chapter 6's own instrumentation checklist. Test-case
 // spans divide the test task's own duration evenly across however many test
 // cases ran; their per-span duration is a placeholder to make the span tile
 // its parent, not an independent signal — only FlakyTestName's pass/fail
@@ -26,6 +27,16 @@
 // regression from 12 to 22 minutes caught on day one." That step change,
 // not a gradual drift, is what a P95-duration trigger on a trailing window
 // catches quickly; see TestGenerate_RegressionIsAStepChange.
+//
+// # The branch split
+//
+// MainBranchShare of runs are on main; the rest are on per-PR branches. That
+// split exists because Chapter 18 calls the repository and branch the most
+// important telemetry a pipeline emits: one inappropriately slow or flaky
+// test on a PR branch costs its author, and the same test on main costs
+// everyone. The flaky test fails at the same rate on both, so breaking the
+// flakiness query down by vcs.ref.head.name is what turns one number into a
+// blast-radius argument.
 //
 // # The flaky test
 //
@@ -55,6 +66,10 @@ import (
 // literal rather than an index.
 const FlakyTestName = "TestPaymentRetryIsIdempotent"
 
+// MainBranchName is the trunk branch, where a flaky test costs every
+// developer rather than only its author.
+const MainBranchName = "main"
+
 // Config describes one generated dataset.
 type Config struct {
 	// RunCount is the number of pipeline runs (traces) to generate.
@@ -68,8 +83,11 @@ type Config struct {
 	// Now anchors the dataset.
 	Now time.Time
 
-	TestCount              int
-	FlakyTestFailureRate   float64
+	TestCount            int
+	FlakyTestFailureRate float64
+	// MainBranchShare is the fraction of runs that ran on main rather than
+	// on a PR branch.
+	MainBranchShare        float64
 	BaselineBuildDuration  time.Duration
 	RegressedBuildDuration time.Duration
 }
@@ -83,6 +101,7 @@ func DefaultConfig() Config {
 		RegressionAgo:          20 * time.Hour,
 		TestCount:              20,
 		FlakyTestFailureRate:   0.15,
+		MainBranchShare:        0.25,
 		BaselineBuildDuration:  12 * time.Minute,
 		RegressedBuildDuration: 22 * time.Minute,
 	}
@@ -120,8 +139,12 @@ type Task struct {
 type Run struct {
 	Start time.Time
 	RunID string
-	// PRNumber is the vcs.change.id this run was triggered by.
+	// PRNumber is the vcs.change.id this run was triggered by. A run on main
+	// still carries one: it is the PR that merged.
 	PRNumber int
+	// Branch is the vcs.ref.head.name this run built — MainBranchName, or a
+	// per-PR branch derived from PRNumber.
+	Branch string
 	// Regressed is true if this run falls after RegressionStart, so its
 	// build task uses RegressedBuildDuration. Exposed so tests can assert on
 	// the population rather than re-deriving the rule.
@@ -175,10 +198,17 @@ func Generate(cfg Config, rng *rand.Rand) []Run {
 			runResult = ResultFailure
 		}
 
+		prNumber := 1000 + rng.Intn(4000)
+		branch := fmt.Sprintf("pr-%d", prNumber)
+		if rng.Float64() < cfg.MainBranchShare {
+			branch = MainBranchName
+		}
+
 		out = append(out, Run{
 			Start:     start,
 			RunID:     fmt.Sprintf("run-%06d", i),
-			PRNumber:  1000 + rng.Intn(4000),
+			PRNumber:  prNumber,
+			Branch:    branch,
 			Regressed: regressed,
 			Tasks:     tasks,
 			Result:    runResult,

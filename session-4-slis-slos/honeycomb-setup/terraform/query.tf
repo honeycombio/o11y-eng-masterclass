@@ -3,7 +3,7 @@
 # than in the expression:
 #
 #  - baseline_sli: the steady-state view, the workshop's stand-in for a real
-#    SLO's 28-day baseline.
+#    SLO's 30-day baseline.
 #  - burn_trigger_sli: a single trailing-window number, deliberately with no
 #    breakdown. This is what the Trigger below watches — a trigger needs one
 #    unambiguous value to threshold on, and keeping it separate from the

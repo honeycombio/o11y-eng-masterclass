@@ -1,6 +1,7 @@
 package cicdscenario
 
 import (
+	"fmt"
 	"math/rand"
 	"testing"
 	"time"
@@ -149,5 +150,75 @@ func TestGenerate_RunCountExceedsQueueMargin(t *testing.T) {
 	total := cfg.RunCount * spansPerRun
 	if total <= defaultQueueSize*2 {
 		t.Fatalf("default config emits %d spans, not comfortably past the %d-span default queue; raise RunCount", total, defaultQueueSize)
+	}
+}
+
+// TestGenerate_BranchSplitMatchesConfig checks the trunk-versus-PR split
+// lands near MainBranchShare and that both cohorts are populated. The
+// breakdown query in honeycomb-setup needs two rows to make Chapter 18's
+// blast-radius point; one empty cohort would quietly reduce it to a single
+// number.
+func TestGenerate_BranchSplitMatchesConfig(t *testing.T) {
+	cfg, runs := generate(t)
+
+	var onTrunk int
+	for _, r := range runs {
+		if r.Branch == MainBranchName {
+			onTrunk++
+		}
+	}
+	prRuns := len(runs) - onTrunk
+
+	if onTrunk == 0 || prRuns == 0 {
+		t.Fatalf("branch cohorts are %d on trunk and %d on PR branches; the breakdown demo needs both", onTrunk, prRuns)
+	}
+
+	got := float64(onTrunk) / float64(len(runs))
+	const tolerance = 0.05
+	if diff := got - cfg.MainBranchShare; diff < -tolerance || diff > tolerance {
+		t.Errorf("trunk share = %.3f, want %.3f ±%.2f", got, cfg.MainBranchShare, tolerance)
+	}
+}
+
+// TestGenerate_BranchNameTracksPRNumber asserts vcs.ref.head.name and
+// vcs.change.id stay consistent: a PR run's branch is derived from its own PR
+// number, and a trunk run still carries the PR number that landed, so the two
+// attributes never contradict each other within a trace.
+func TestGenerate_BranchNameTracksPRNumber(t *testing.T) {
+	_, runs := generate(t)
+
+	for _, r := range runs {
+		if r.PRNumber == 0 {
+			t.Errorf("run %s: no PR number; every run traces back to one", r.RunID)
+		}
+		if r.Branch == MainBranchName {
+			continue
+		}
+		if want := fmt.Sprintf("pr-%d", r.PRNumber); r.Branch != want {
+			t.Errorf("run %s: branch %q, want %q", r.RunID, r.Branch, want)
+		}
+	}
+}
+
+// TestGenerate_FlakyTestFailsOnBothBranches guards the reason the split
+// exists at all. The flaky test is branch-independent, so it has to fail on
+// trunk as well as on PR branches — that is what makes "same test, different
+// blast radius" a claim about ownership rather than about one unlucky branch.
+func TestGenerate_FlakyTestFailsOnBothBranches(t *testing.T) {
+	_, runs := generate(t)
+
+	failures := map[bool]int{}
+	for _, r := range runs {
+		for _, task := range r.Tasks {
+			for _, tc := range task.Tests {
+				if tc.Name == FlakyTestName && tc.Result == ResultFailure {
+					failures[r.Branch == MainBranchName]++
+				}
+			}
+		}
+	}
+
+	if failures[true] == 0 || failures[false] == 0 {
+		t.Fatalf("flaky-test failures: %d on trunk, %d on PR branches; both must be non-zero", failures[true], failures[false])
 	}
 }

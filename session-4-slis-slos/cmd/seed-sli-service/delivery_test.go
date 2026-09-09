@@ -159,7 +159,7 @@ func TestSeeder_DeliversEveryRequest(t *testing.T) {
 
 // TestSeeder_EmitsExpectedAttributes guards against the attribute-naming drift
 // that the slides and the derived column depend on. If a rename lands here,
-// the SLI's IF(LT($http.response.status_code, 500), ...) expression stops
+// the SLI's IF(LT($http.response.status_code, 400), ...) expression stops
 // matching the data.
 func TestSeeder_EmitsExpectedAttributes(t *testing.T) {
 	spans := runSeeder(t)

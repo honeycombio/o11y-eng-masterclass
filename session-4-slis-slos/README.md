@@ -49,7 +49,7 @@ background rate.
 That gives the session's two live demos real data to work with:
 
 - **Four SLIs, four service types**: the dataset backs the HTTP-API formula
-  live (`count(status_code < 500) / count(*) where route != '/healthz'`); the
+  live (`count(status_code < 400) / count(*) where route != '/healthz'`); the
   other three formulas on that slide are illustrated, not separately seeded.
 - **From burn to fix**: the incident is what the trailing-window trigger finds,
   and `service.version` + `user.type` are what a BubbleUp box (or the
@@ -95,7 +95,7 @@ comment for the exact proportions and why they're tuned the way they are.
 
 1. Show the `honeycombio_derived_column.sli_good_request` expression in
    Terraform, or create it live in the UI: `IF(LT($http.response.status_code,
-   500), 1, 0)`.
+   400), 1, 0)`.
 2. Run `AVG()` on it, filtered to `route != '/healthz'` — that number is the
    SLI.
 3. Toggle the filter off and show the ratio move; that's the exclusion clause

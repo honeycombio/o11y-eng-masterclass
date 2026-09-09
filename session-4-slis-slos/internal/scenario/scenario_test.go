@@ -93,7 +93,7 @@ func TestGenerate_ErrorSpikeIsDemoSized(t *testing.T) {
 
 // TestGenerate_OverallSLIStaysHealthy asserts the flip side: blended across
 // the whole 6h window and every user type, the SLI barely moves. That's what
-// lets the session say a 28-day-baseline target wouldn't have caught this on
+// lets the session say a 30-day-baseline target wouldn't have caught this on
 // its own — only the short trailing window does.
 func TestGenerate_OverallSLIStaysHealthy(t *testing.T) {
 	_, reqs := generate(t)
@@ -104,7 +104,7 @@ func TestGenerate_OverallSLIStaysHealthy(t *testing.T) {
 			continue
 		}
 		total++
-		if r.StatusCode() < 500 {
+		if r.StatusCode() < 400 {
 			good++
 		}
 	}
@@ -133,14 +133,14 @@ func TestGenerate_HealthzExclusionMasksTheDrop(t *testing.T) {
 			continue
 		}
 		noFilterTotal++
-		if r.StatusCode() < 500 {
+		if r.StatusCode() < 400 {
 			noFilterGood++
 		}
 		if r.Route == RouteHealthz {
 			continue
 		}
 		withFilterTotal++
-		if r.StatusCode() < 500 {
+		if r.StatusCode() < 400 {
 			withFilterGood++
 		}
 	}

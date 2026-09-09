@@ -50,7 +50,10 @@ doesn't matter for those two.
    window. What the trigger below watches.
 2. `cicd_flaky_tests` (query) — COUNT of failed test-case spans by
    `test.name`. One row, always — the seeded flaky test.
-3. `cicd_build_p95` (trigger) — fires when the build task's trailing P95
+3. `cicd_flaky_tests_by_branch` (query) — the same failures by
+   `vcs.ref.head.name`. Two rows: the trunk and PR branches, differing in
+   volume rather than rate, which is Chapter 18's blast-radius point.
+4. `cicd_build_p95` (trigger) — fires when the build task's trailing P95
    exceeds `cicd_build_p95_threshold_ms` (default 15m, between the seeded
    ~12m baseline and ~22m regressed durations).
 

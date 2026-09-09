@@ -25,9 +25,9 @@ variable "baseline_window_seconds" {
   default     = 21600 # 6h, matching the seeder's default Window
   description = <<-EOT
     Time range for the steady-state SLI query. Real Honeycomb SLOs baseline
-    against 28 days; this seeds only a 6-hour window (see internal/scenario's
+    against 30 days; this seeds only a 6-hour window (see internal/scenario's
     package comment for why), so the workshop's "baseline" query is scoped to
-    match the data that actually exists rather than a mostly-empty 28 days.
+    match the data that actually exists rather than a mostly-empty 30 days.
   EOT
 }
 
