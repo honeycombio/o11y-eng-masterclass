@@ -7,6 +7,22 @@ receivers:
         endpoint: 0.0.0.0:4318
 
 processors:
+  # For MC6's LLM demo: session-6's live traffic is real Claude Code OTel
+  # telemetry (see session-6-every-domain/README.md), which carries the
+  # user's real organization.id, user.account_id, and user.account_uuid on
+  # every span and log event. Masked (not deleted) here so a live/recorded
+  # session doesn't project those identifiers on screen; user.email passes
+  # through deliberately (see session-6's README for why). Safe as a global
+  # rule, not scoped to service.name=claude-code: no other session's data
+  # uses these attribute keys, and the redactionprocessor has no per-service
+  # matching of its own to scope with anyway.
+  redaction:
+    allow_all_keys: true
+    blocked_key_patterns:
+      - "^organization\\.id$"
+      - "^user\\.account_id$"
+      - "^user\\.account_uuid$"
+    summary: silent
   # For MC5's cost/sampling demo: real tail sampling as a single Collector
   # processor rather than a separate Refinery deployment. Upstream `development`
   # stability (see the distro's own README) — pinned to a specific distro
@@ -62,7 +78,17 @@ service:
   pipelines:
     traces:
       receivers: [otlp]
-      # adaptive_tail_sampling ahead of batch: it decides per whole trace, so
-      # it needs to see spans before batch regroups them for export.
-      processors: [adaptive_tail_sampling, batch]
+      # redaction first (normalise/secure before anything else touches the
+      # data), then adaptive_tail_sampling ahead of batch: it decides per
+      # whole trace, so it needs to see spans before batch regroups them for
+      # export.
+      processors: [redaction, adaptive_tail_sampling, batch]
+      exporters: [otlp_http/honeycomb]
+    # For MC6's LLM demo: Claude Code's own telemetry (claude_code.api_request
+    # and friends) arrives as log records, not spans — see
+    # session-6-every-domain/README.md. No other session in this repo emits
+    # logs, so this pipeline exists solely for that traffic.
+    logs:
+      receivers: [otlp]
+      processors: [redaction, batch]
       exporters: [otlp_http/honeycomb]

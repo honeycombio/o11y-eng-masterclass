@@ -7,11 +7,16 @@ and the async lab reference.
 ## Layout
 
 - [`collector/`](collector) — local OTel Collector config + docker-compose,
-  shared by everything below (including session 5). Start this first. Runs
-  Honeycomb's own Collector distro rather than the plain contrib image, since
-  session 5's cost/sampling demo needs its `adaptive_tail_sampling` processor;
-  every other session's traffic falls through that config's default rule
-  untouched — see [`../session-5-cost-sampling/README.md`](../session-5-cost-sampling/README.md).
+  shared by everything below (including sessions 5 and 6). Start this first.
+  Runs Honeycomb's own Collector distro rather than the plain contrib image,
+  since session 5's cost/sampling demo needs its `adaptive_tail_sampling`
+  processor; every other session's traffic falls through that config's
+  default rule untouched — see
+  [`../session-5-cost-sampling/README.md`](../session-5-cost-sampling/README.md).
+  Session 6 adds a `redaction` processor (masks a few Claude Code identifiers)
+  and a `logs` pipeline (Claude Code's telemetry arrives as log records, not
+  just spans) — see
+  [`../session-6-every-domain/README.md`](../session-6-every-domain/README.md).
 - [`otel-quickstart/`](otel-quickstart) — the live demo: auto-instrumentation
   via `otelhttp`, then one hand-written custom span.
 - [`seed-sample-service/`](seed-sample-service) — pre-session seeder for the
