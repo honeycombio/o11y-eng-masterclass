@@ -3,7 +3,13 @@ services:
     # Pinned deliberately. On :latest, two people running this file on different
     # days get different binaries — which is how a config that works for one
     # person fails for another with no diff to point at.
-    image: otel/opentelemetry-collector-contrib:0.157.0
+    #
+    # Honeycomb's own distro, not otel/opentelemetry-collector-contrib: MC5
+    # needs adaptivetailsamplingprocessor, which isn't in contrib and ships
+    # here as an explicitly experimental preview (see the config's comment on
+    # the adaptive_tail_sampling processor). MC1-4 are unaffected — their
+    # traffic falls through to the config's default always_sample rule.
+    image: honeycombio/honeycomb-opentelemetry-collector:v0.0.40
     command: ["--config=/etc/otel-collector-config.yaml"]
     volumes:
       - ./otel-collector-config.yaml:/etc/otel-collector-config.yaml:ro

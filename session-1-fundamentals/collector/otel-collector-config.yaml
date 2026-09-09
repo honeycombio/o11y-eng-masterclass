@@ -7,6 +7,47 @@ receivers:
         endpoint: 0.0.0.0:4318
 
 processors:
+  # For MC5's cost/sampling demo: real tail sampling as a single Collector
+  # processor rather than a separate Refinery deployment. Upstream `development`
+  # stability (see the distro's own README) — pinned to a specific distro
+  # version in ../collector/docker-compose.yml for exactly that reason.
+  #
+  # Rules are first-match, in order:
+  #   1. keep-errors: every errored span, from any session's traffic. Global
+  #      and harmless — MC1-4 don't generate enough error volume for this to
+  #      change what their demos show, and an error is worth keeping regardless
+  #      of which session produced it.
+  #   2. cost-sampling-service: MC5's own seeded traffic (see
+  #      ../../session-5-cost-sampling), sampled to a ~5% target rate per
+  #      http.route (fingerprint_attributes below) rather than one global
+  #      rate, so a low-volume route stays visible instead of being swallowed
+  #      by the high-volume ones — see session-5-cost-sampling/internal/scenario's
+  #      package comment.
+  #   3. default: everything else — MC1-4's traffic — passes through
+  #      untouched. This is what keeps "session-1's Collector is reused" true
+  #      for those sessions despite this processor's addition.
+  adaptive_tail_sampling:
+    trace_timeout: 30s
+    decision_delay: 2s
+    num_traces: 50000
+    rules:
+      - name: keep-errors
+        conditions:
+          - "span.status.code == STATUS_CODE_ERROR"
+        sampler:
+          type: always_sample
+      - name: cost-sampling-service
+        conditions:
+          - 'resource.attributes["service.name"] == "cost-sampling-service"'
+        sampler:
+          type: adaptive_percentage
+          goal_percentage: 5
+          fingerprint_attributes:
+            - span.attributes["http.route"]
+          adjustment_interval: 15s
+      - name: default
+        sampler:
+          type: always_sample
   batch:
 
 exporters:
@@ -21,5 +62,7 @@ service:
   pipelines:
     traces:
       receivers: [otlp]
-      processors: [batch]
+      # adaptive_tail_sampling ahead of batch: it decides per whole trace, so
+      # it needs to see spans before batch regroups them for export.
+      processors: [adaptive_tail_sampling, batch]
       exporters: [otlp_http/honeycomb]

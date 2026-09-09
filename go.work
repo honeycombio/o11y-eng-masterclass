@@ -7,4 +7,5 @@ use (
 	./session-2-feedback-loops
 	./session-3-business-case
 	./session-4-slis-slos
+	./session-5-cost-sampling
 )

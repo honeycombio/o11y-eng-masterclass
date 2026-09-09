@@ -16,6 +16,8 @@ that session. So far:
   the Investment Diagnostic
 - [`session-4-slis-slos/`](session-4-slis-slos) — SLIs and SLOs for the Modern
   Era
+- [`session-5-cost-sampling/`](session-5-cost-sampling) — What Observability
+  Costs, and How to Make It Cost Less
 
 ## Delivery model
 
@@ -34,8 +36,7 @@ setup," which are "live demo," and which are lab/workshop material.
 - A Honeycomb configuration key, if you want to create markers/boards/triggers —
   a different key from the one above
 - Terraform 1.5+ (optional for sessions 1-3; every Honeycomb object there also
-  has a shell-script path. Session 4's derived-column-and-trigger setup is
-  Terraform-only — see its README for why)
+  has a shell-script path. Sessions 4 and 5 are Terraform-only)
 
 ## Verifying
 
@@ -49,8 +50,10 @@ The repo root is a Go workspace (`go.work`) over several per-demo modules rather
 than a module itself, so use the Makefile rather than `go build ./...` here.
 
 CI ([`.circleci/config.yml`](.circleci/config.yml)) runs all of the above plus
-`terraform fmt`/`validate` and `shellcheck`. Two things it is specifically there
-to catch, because both have already happened once:
+`terraform fmt`/`validate`, `shellcheck`, and — since session 5 added a
+processor to session-1's shared Collector config — `otelcol validate` against
+that config. Two things it is specifically there to catch, because both have
+already happened once:
 
 - **Dropped spans.** The seeders' delivery tests stand up an in-process OTLP
   receiver and assert every generated span actually arrives. A seeder that
