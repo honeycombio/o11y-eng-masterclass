@@ -18,14 +18,15 @@ resource "honeycombio_trigger" "sli_burn" {
   # query_id.
   query_json = data.honeycombio_query_specification.burn_trigger_sli.json
 
-  # Below var.burn_threshold, checked every 5 minutes — frequent enough that a
-  # live demo doesn't need to wait long after the incident starts to see it
-  # fire, without being so frequent it evaluates on noise.
+  # Below var.burn_threshold. Honeycomb requires a trigger's query duration to
+  # be no more than 4x its frequency, so a 1h (burn_window_seconds) query
+  # needs frequency >= 900 — 900 is that floor, the most responsive a live
+  # demo can be without Honeycomb rejecting the config.
   threshold {
     op    = "<"
     value = var.burn_threshold
   }
-  frequency = 300
+  frequency = 900
 
   recipient {
     type   = var.trigger_recipient_type

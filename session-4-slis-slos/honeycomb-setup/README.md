@@ -74,9 +74,11 @@ too — the old marker stays, a new one is added.
    `service.version` and `user.type`, sorted so the worst row is first. This
    is what you click into once the trigger fires.
 5. **`sli_burn`** (`honeycombio_trigger`) — fires when `burn_trigger_sli` drops
-   below `burn_threshold` (default 0.90), checked every 5 minutes. The
-   free-tier stand-in for a burn alert: a plain threshold on a recent window,
-   not real error-budget burn-rate math, but the same shape — it reacts to
-   what just happened, not to the dataset's lifetime average.
+   below `burn_threshold` (default 0.90), checked every 15 minutes (900s —
+   the minimum Honeycomb allows for a 1-hour query, since a trigger's query
+   duration can't exceed 4x its frequency). The free-tier stand-in for a burn
+   alert: a plain threshold on a recent window, not real error-budget
+   burn-rate math, but the same shape — it reacts to what just happened, not
+   to the dataset's lifetime average.
 6. **`incident_start`** (`honeycombio_marker`) — marks where the incident
    began, so any before/after comparison has a boundary to read against.
