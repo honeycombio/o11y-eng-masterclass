@@ -126,10 +126,12 @@ Run all five tests on your own organisation using the worksheet in the repo. Thr
 
 **Designing good SLIs (15 min, live demo).** A good SLI measures something users feel, is event-based so you can drill in, and is durable — meaning it describes a user journey and stays agnostic to implementation. You are not shipping your architecture diagram or your org chart. That's Chapter 11's own framing: SLOs are based on critical end-user journeys rather than system metrics, which is also why a re-org or a rewrite shouldn't invalidate the SLI. Live, I'll write and validate SLIs for four service types:
 
-- **HTTP API:** `count(status_code < 400) / count(*) where route != '/healthz'`. Exclude health checks; use `<400` not `==200`, matching Chapter 11's own worked SLI — a 4xx on a user-journey endpoint means the user didn't get what they came for.
-- **Async jobs:** `count(job.status == 'completed') / count(job.status != 'pending')` over a window; mind the time boundary.
+- **HTTP API:** built live as two separate Honeycomb-native pieces, not one query — a derived column, `IF(LT($http.response.status_code, 400), 1, 0)`, and a query reading it, `AVG(sli_good_request)` filtered to `route != '/healthz'`. Exclude health checks; use `<400` not `==200`, matching Chapter 11's own worked SLI — a 4xx on a user-journey endpoint means the user didn't get what they came for.
+- **Async jobs:** `count(job.status == 'completed') / count(job.status != 'pending')` over a window; mind the time boundary. This one stays in Chapter 11's own count/count notation — it's illustrated, not separately seeded.
 - **Database service:** different latency budgets for interactive vs. batch.
-- **LLM-backed service:** `count(llm.response.quality_score > 0.7) / count(*)`, where the score comes from an eval pipeline; the 2026 challenge, since the metric needs its own AI subsystem (Chapter 21).
+- **LLM-backed service:** `count(llm.response.quality_score > 0.7) / count(*)`, where the score comes from an eval pipeline; the 2026 challenge, since the metric needs its own AI subsystem (Chapter 21). Also illustrated rather than seeded, so it stays in the book's abstract notation too.
+
+The async and LLM-backed formulas are the book's own count/count shorthand for the concept, not literal Honeycomb query syntax — Honeycomb's query builder has a single `COUNT` calculation and a separate structured filter list, with no inline `WHERE` and no way to divide two `COUNT` results against each other. The HTTP-API one is the only one of the four actually built on stage, which is why it gets the real derived-column-plus-query treatment instead.
 
 I'm writing these by hand, but Chapter 11's "Accelerating SLO Adoption with Generative AI" is the shortcut most teams should take: prompt a model for the SLI expression, then review it like a pull request. The chapter's own example shows why the review matters — both models it tried omitted the filter restricting the SLI to server spans. Prompts are in the book's example repo; drafting one is an async-lab step rather than live-demo minutes.
 
