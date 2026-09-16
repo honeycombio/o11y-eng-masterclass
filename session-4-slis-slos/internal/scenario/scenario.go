@@ -28,20 +28,26 @@
 // that's obviously broken all the time isn't a burn-rate demo, it's just an
 // outage). The incident population is the product of four independent
 // filters (in the window, not a health check, enterprise, buggy build), and
-// four compounding fractions shrink fast — a naive 24-hour dataset with a
-// small enterprise share leaves single-digit affected requests. So the window
-// is deliberately short (6h, "this seed covers a recent stretch of traffic",
-// not a full day) and the enterprise and buggy-build shares are deliberately
-// generous. With the defaults below and 15,000 requests:
+// four compounding fractions shrink fast. So the window is deliberately short
+// (6h, "this seed covers a recent stretch of traffic", not a full day) and
+// the enterprise and buggy-build shares are deliberately generous. With the
+// defaults below and 15,000 requests:
 //
 //	requests in the incident window     15000 * (60/360)          = 2500
-//	... on /api/orders (not healthz)    * 0.40                    = 1000
-//	... enterprise                      * 0.20                    =  200
-//	... on the buggy build              * 0.30                    =   60
+//	... on /api/orders (not healthz)    * 0.43                    = 1075
+//	... enterprise                      * 0.33                    =  355
+//	... on the buggy build              * 0.43                    =  153
 //
-// ~60 affected requests, most erroring at IncidentErrorRate, is enough for
-// TestGenerate_ErrorSpikeIsDemoSized to hold and for the burn query to show a
-// clean drop without the incident swallowing the whole dataset.
+// ~150 affected requests, ~95% of them erroring, is what it actually takes to
+// reliably drop the trailing-1-hour AVG() below the trigger's burn_threshold
+// (0.90, see ../../honeycomb-setup/terraform/variables.tf). The expected-value
+// arithmetic above is necessary but not sufficient: RequestCount is sampled
+// per request via math/rand, so the affected population varies run to run,
+// and Generate is reseeded on every real invocation (see
+// cmd/seed-sli-service). These proportions are chosen so the trailing-window
+// ratio clears burn_threshold with margin across that variance rather than
+// only in expectation — verified by simulating Generate across 1000 random
+// seeds and requiring the trigger to fire in all of them, not just most.
 package scenario
 
 import (
@@ -73,6 +79,10 @@ type Config struct {
 	// HealthzShare is the fraction of all requests that are health checks
 	// rather than /api/orders. Health checks always succeed.
 	HealthzShare float64
+	// EnterpriseShare is the fraction of /api/orders traffic on the enterprise
+	// plan. The free:premium split among the remainder holds the same 5:3
+	// ratio regardless of this value — see userTypeFor.
+	EnterpriseShare float64
 	// BaselineErrorRate is the ordinary background 5xx rate on /api/orders,
 	// outside the incident population.
 	BaselineErrorRate float64
@@ -90,10 +100,11 @@ func DefaultConfig() Config {
 		IncidentAgo:       60 * time.Minute,
 		HealthyVersion:    "1.5.0",
 		BuggyVersion:      "1.4.2",
-		BuggyShare:        0.30,
-		HealthzShare:      0.68,
+		BuggyShare:        0.43,
+		HealthzShare:      0.57,
+		EnterpriseShare:   0.33,
 		BaselineErrorRate: 0.01,
-		IncidentErrorRate: 0.65,
+		IncidentErrorRate: 0.95,
 	}
 }
 
@@ -162,7 +173,7 @@ func Generate(cfg Config, rng *rand.Rand) []Request {
 		}
 
 		version := versionFor(cfg, rng)
-		userType := userTypeFor(rng)
+		userType := userTypeFor(cfg, rng)
 		inWindow := start.After(incidentStart)
 		incident := inWindow && version == cfg.BuggyVersion && userType == "enterprise"
 
@@ -200,12 +211,18 @@ func versionFor(cfg Config, rng *rand.Rand) string {
 	return cfg.HealthyVersion
 }
 
-func userTypeFor(rng *rand.Rand) string {
+// userTypeFor splits traffic free/premium/enterprise, holding the free:premium
+// ratio at 5:3 among the non-enterprise remainder regardless of
+// cfg.EnterpriseShare.
+func userTypeFor(cfg Config, rng *rand.Rand) string {
+	nonEnterprise := 1 - cfg.EnterpriseShare
+	freeCut := nonEnterprise * 5 / 8
+	premiumCut := nonEnterprise
 	r := rng.Float64()
 	switch {
-	case r < 0.50:
+	case r < freeCut:
 		return "free"
-	case r < 0.80:
+	case r < premiumCut:
 		return "premium"
 	default:
 		return "enterprise"
