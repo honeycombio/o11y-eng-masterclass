@@ -103,12 +103,18 @@ comment for the exact proportions and why they're tuned the way they are.
 
 **From burn to fix** (the trigger demo):
 
-1. Open the trigger; it's already alerting (or fires within a few minutes of
-   the window rolling forward — its frequency is 5 minutes).
-2. Click into the `burn_breakdown_sli` query — sorted ascending, so the worst
-   `service.version` + `user.type` combination is the first row.
-3. Draw a BubbleUp box around the errors in that same query to confirm.
-4. Land on: burn detected, cohort identified, without leaving the page.
+1. Open the trigger; it's already alerting (or fires within 15 minutes of the
+   window rolling forward — its frequency is 900s, the minimum Honeycomb
+   allows for a 1-hour query: duration can't exceed 4x the frequency).
+2. Draw a BubbleUp box around the errors in the `burn_trigger_sli` query.
+   `error.type = dependency_unavailable` is the standout — every error in
+   this dataset carries that value, so it's a 100%-vs-baseline split and
+   BubbleUp ranks it above everything else. This tells you *what* broke.
+3. Click into the `burn_breakdown_sli` query — sorted ascending, so the worst
+   `service.version` + `user.type` combination is the first row. This tells
+   you *who* it's broken for.
+4. Land on: burn detected, what's broken, who's affected — without leaving
+   the page.
 
 ## Async lab
 

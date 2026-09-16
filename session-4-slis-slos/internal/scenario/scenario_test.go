@@ -157,6 +157,50 @@ func TestGenerate_HealthzExclusionMasksTheDrop(t *testing.T) {
 	}
 }
 
+// burnWindowSeconds and burnThreshold mirror
+// ../../honeycomb-setup/terraform/variables.tf's burn_window_seconds and
+// burn_threshold defaults. Duplicated here (Go can't read .tf files) so this
+// test fails if either side drifts from the other.
+const (
+	burnWindowSeconds = 3600
+	burnThreshold     = 0.90
+)
+
+// TestGenerate_BurnWindowReliablyCrossesThreshold is the regression test for
+// the bug where the trigger never fired: the previous tuning's expected-value
+// arithmetic looked fine, but the trailing-1-hour AVG() stayed above
+// burn_threshold in every one of 1000 simulated seeds, because Generate
+// reseeds (math/rand, time-seeded) on every real run and the affected
+// population was too small a fraction of the trailing window's traffic to
+// reliably drag the blended ratio down that far. Runs across many
+// deterministic seeds rather than one, since the bug this guards against was
+// invisible at a single fixed seed.
+func TestGenerate_BurnWindowReliablyCrossesThreshold(t *testing.T) {
+	cfg := testConfig()
+	trailingStart := cfg.Now.Add(-burnWindowSeconds * time.Second)
+
+	const seeds = 200
+	for seed := range int64(seeds) {
+		reqs := Generate(cfg, rand.New(rand.NewSource(seed)))
+
+		var total, good int
+		for _, r := range reqs {
+			if r.Route == RouteHealthz || !r.Start.After(trailingStart) {
+				continue
+			}
+			total++
+			if r.StatusCode() < 400 {
+				good++
+			}
+		}
+
+		avg := float64(good) / float64(total)
+		if avg >= burnThreshold {
+			t.Fatalf("seed %d: trailing-window AVG %.4f does not clear burn_threshold %.2f; the trigger would not fire", seed, avg, burnThreshold)
+		}
+	}
+}
+
 // TestGenerate_BubbleUpDimensionsAreSkewed approximates what BubbleUp
 // computes: for each dimension value, its prevalence inside the errored
 // population during the incident window versus the healthy baseline

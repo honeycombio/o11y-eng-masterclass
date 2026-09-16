@@ -10,10 +10,12 @@
 #    breakdown query means there's no question about which one the alert is
 #    actually evaluating.
 #  - burn_breakdown_sli: the same trailing window, broken down by
-#    service.version and user.type. This is the investigative query for the
-#    "drill in" moment — the worst row is already visible without a separate
-#    BubbleUp pass, though drawing a BubbleUp box around the errors here still
-#    works and is worth demoing too.
+#    service.version and user.type. This is the "who's affected" query — the
+#    worst row is already visible without a separate BubbleUp pass. BubbleUp
+#    on burn_trigger_sli is still worth demoing, but it answers a different
+#    question: every error in this dataset carries error.type =
+#    dependency_unavailable, so that's what BubbleUp ranks top — a "what
+#    broke" finding, not a "who's affected" one.
 
 data "honeycombio_query_specification" "baseline_sli" {
   time_range = var.baseline_window_seconds
