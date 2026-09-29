@@ -122,6 +122,7 @@ func runSeeder(t *testing.T) []receivedSpan {
 		"OTEL_EXPORTER_OTLP_ENDPOINT="+lis.Addr().String(),
 		fmt.Sprintf("SEED_COUNT=%d", seedCount),
 		"SEED_SETTLE_WAIT=10ms",
+		"SEED_DURATION=0s",
 	)
 	out, err := cmd.CombinedOutput()
 	if err != nil {

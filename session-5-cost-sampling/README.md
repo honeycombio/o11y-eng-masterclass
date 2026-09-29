@@ -54,9 +54,9 @@ One service, `cost-sampling-service`, four routes at a skewed 85/10/4/1
 distribution, and a synthetic 15% error rate. Every request is a two-span
 trace (root HTTP span + one `db.query` child) — the Collector decides
 per whole trace, so single-span traces couldn't show that. Unlike session 4,
-nothing is backdated: spans are emitted at real wall-clock time, because the
-Collector's decision window (`decision_delay`, `adjustment_interval`) only
-means something against real arrival timing.
+nothing is backdated: spans are emitted at real wall-clock time, paced evenly
+over 90 seconds, because the Collector's decision window (`decision_delay`,
+`adjustment_interval`) only means something against real arrival timing.
 
 The Collector's `cost-sampling-service` rule keeps every errored trace and
 samples the rest to a `goal_percentage` of 5%, fingerprinted on `http.route`
@@ -66,57 +66,80 @@ statistical noise. See
 [`internal/scenario/scenario.go`](internal/scenario/scenario.go)'s package
 comment for the exact retained-share arithmetic.
 
+The pacing is load-bearing. The per-route sampler has no per-route rates
+until its first 15s `adjustment_interval` tick, and until then samples every
+route at the flat goal rate. A burst seed would land entirely inside that
+first interval and demonstrate a flat 1-in-20 sample, not per-route
+sampling. The sampler also carries state between runs, so the checklist
+restarts the Collector before each seed.
+
 ## Pre-session checklist
 
-1. Start the Collector (now Honeycomb's distro image, not plain contrib —
-   see [`../session-1-fundamentals/collector`](../session-1-fundamentals/collector)):
+1. Apply the Terraform (two saved queries) — see
+   [`honeycomb-setup/`](honeycomb-setup). Any time beforehand.
+
+2. Within 30 minutes of going live (the saved queries' window), restart the
+   Collector (Honeycomb's distro image, not plain contrib — see
+   [`../session-1-fundamentals/collector`](../session-1-fundamentals/collector))
+   so the sampler starts cold, then seed once:
 
    ```bash
    cd ../session-1-fundamentals/collector
-   HONEYCOMB_API_KEY=<send-events key> docker compose up -d
-   ```
-
-2. Apply the Terraform (two saved queries) — see
-   [`honeycomb-setup/`](honeycomb-setup). Order relative to seeding doesn't
-   matter; there's no timestamp to thread through, unlike session 4.
-
-3. Seed the dataset:
-
-   ```bash
+   HONEYCOMB_API_KEY=<send-events key> docker compose up -d --force-recreate
+   cd ../../session-5-cost-sampling
    go run ./cmd/seed-cost-sampling-service
    ```
 
-   Unlike session 4, there's no "reseed shortly before you go live" step —
-   this is a point-in-time cost comparison, not an ongoing incident with a
-   window that goes stale.
+   The seeder takes about two minutes (90s of paced emission, then 15s for
+   the Collector to settle). Seed only once inside the window: a second run
+   doubles every count.
 
-4. Confirm in Honeycomb: `cost_sampling_population`'s `COUNT()` reads close
+3. Confirm in Honeycomb: `cost_sampling_population`'s `COUNT()` reads close
    to the seeder's own printed request count, and `cost_sampling_by_route`
    shows all four routes, including `/api/admin/report` at roughly its seeded
    1% share.
 
+4. Confirm in Usage Mode (Usage page → Per-environment Breakdown → Usage
+   Mode, where `COUNT()` is unweighted and `Sample Rate` is a queryable
+   field): `COUNT()` is roughly 19% of the seeded request count, and
+   `COUNT()` broken down by `http.route` and `Sample Rate` shows
+   `/api/admin/report`'s healthy traffic kept at a much lower sample rate
+   than `/api/search`'s. Expect three kinds of row per route: sample rate 1
+   (errors, via `keep-errors`), 20 (the first 15s, before the sampler has
+   per-route rates), and the per-route adapted rate. If the adapted rows are
+   missing, the per-route sampler didn't engage — check the Collector was
+   restarted and `SEED_DURATION` wasn't shortened.
+
 ## Live demo run order
 
-**Where the money goes** (slides only, 8 min): ingest volume, retention,
+**Where the money goes** (slides only, 7 min): ingest volume, retention,
 query compute — no live component.
 
-**Sampling, the biggest lever** (18 min, live demo):
+**Sampling, the biggest lever** (7 min slides, then 10 min live):
 
 1. Show the Collector's `adaptive_tail_sampling` rules in
    `otel-collector-config.yaml` — `keep-errors` ahead of the
    `cost-sampling-service` catch-all, ahead of `default`.
-2. Run `cost_sampling_population`: the `COUNT()` reads close to what the
-   seeder printed, even though only a fraction of that traffic is physically
-   stored — that gap, reconciled automatically, is the whole demo.
-3. Run `cost_sampling_by_route`: all four routes are visible in roughly their
-   seeded proportions, including the 1% route — the payoff of fingerprinting
-   the sampler on `http.route` instead of applying one flat rate.
-4. Land on the dollar arithmetic in the curriculum: keep-all-errors (15%) plus
+2. Run `cost_sampling_population`: the weighted `COUNT()` reads close to what
+   the seeder printed.
+3. Switch to Usage Mode and run the same `COUNT()` unweighted: about a fifth
+   of that number is what's physically stored. The gap between the two,
+   reconciled automatically from the recorded sample rate, is the whole demo.
+4. Run `cost_sampling_by_route`: all four routes are visible in roughly their
+   seeded proportions, including the 1% route.
+5. In Usage Mode, break `COUNT()` down by `http.route` and `Sample Rate`: the
+   sampler kept `/api/admin/report`'s healthy traffic at a far lower rate
+   than `/api/search`'s. That's the payoff of fingerprinting on `http.route`
+   instead of applying one flat rate, shown directly rather than inferred
+   from step 4 (which a flat rate plus keep-all-errors would also pass).
+6. Land on the dollar arithmetic in the curriculum: keep-all-errors (15%) plus
    5%-of-the-rest retains ~19% of events, an ~81% reduction — a $50k/month
    bill becomes roughly $9.5k/month with no meaningful loss of debugging
-   power, because every error is still there.
+   power, because every error is still there. The 15% error rate is
+   deliberately inflated for the demo; at a realistic sub-1% error rate the
+   same rules retain ~6%, a ~94% reduction.
 
-**Pipelines and storage / organisational discipline** (slides only, 19 min):
+**Pipelines and storage / organisational discipline** (slides only, 18 min):
 no live component in this repo.
 
 ## Async lab
@@ -124,17 +147,20 @@ no live component in this repo.
 1. Pull your own team's usage data and rank your top three cost drivers —
    which datasets grow fastest, which services contribute most volume.
 2. Model one sampling change against this seeded dataset: try a different
-   `goal_percentage` in the Collector config (re-apply, reseed, requery) and
-   recompute the retained-share arithmetic from `internal/scenario`'s package
-   comment to match.
+   `goal_percentage` in the Collector config (restart the Collector, reseed,
+   requery in both normal and Usage Mode) and recompute the retained-share
+   arithmetic from `internal/scenario`'s package comment to match.
 3. Bring the number to your next budget conversation.
 
 ## Tuning
 
-`SEED_COUNT` (5000 requests, 10000 spans), `SEED_SETTLE_WAIT` (15s — how long
-the seeder waits after its last flush for the Collector's `decision_delay` and
-`adjustment_interval` to settle before exiting; the delivery test overrides
-this to near-zero since its in-process receiver never samples). Route shares
-and the error rate are in
+`SEED_COUNT` (5000 requests, 10000 spans), `SEED_DURATION` (90s — how long
+emission is paced over; must span several of the Collector's
+`adjustment_interval`s, which `TestDefaultConfig_DurationSpansAdjustmentIntervals`
+enforces against the real Collector config), `SEED_SETTLE_WAIT` (15s — how
+long the seeder waits after its last flush for the Collector's
+`decision_delay` and `adjustment_interval` to settle before exiting). The
+delivery test overrides both durations to near-zero since its in-process
+receiver never samples. Route shares and the error rate are in
 [`internal/scenario/scenario.go`](internal/scenario/scenario.go)'s
 `DefaultConfig` — the tests enforce the bounds that keep the demo working.

@@ -15,8 +15,10 @@ variable "query_window_seconds" {
   default     = 1800 # 30m
   description = <<-EOT
     Time range for both queries below. Wide enough to comfortably cover a
-    live seeding run (the default seed emits over roughly a minute, plus the
+    live seeding run (the default seed emits over 90 seconds, plus the
     Collector's decision_delay and adjustment_interval settling time) without
-    reaching back far enough to pick up an unrelated previous run.
+    reaching back far enough to pick up an unrelated previous run. This is
+    also why the pre-session checklist seeds once, within 30 minutes of
+    going live.
   EOT
 }
