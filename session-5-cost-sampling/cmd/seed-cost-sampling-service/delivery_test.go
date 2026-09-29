@@ -32,6 +32,7 @@ type receivedSpan struct {
 	parentID string
 	attrs    map[string]string
 	status   int32
+	start    time.Time
 }
 
 type collector struct {
@@ -61,6 +62,7 @@ func (c *collector) Export(_ context.Context, req *collectortrace.ExportTraceSer
 					parentID: fmt.Sprintf("%x", span.ParentSpanId),
 					attrs:    attrs,
 					status:   status,
+					start:    time.Unix(0, int64(span.StartTimeUnixNano)),
 				})
 			}
 		}
@@ -88,11 +90,16 @@ func renderValue(v *commonpb.AnyValue) string {
 }
 
 // runSeeder starts an in-process OTLP receiver, runs the seeder against it,
-// and returns everything the receiver saw. SEED_SETTLE_WAIT is forced near
-// zero: this receiver never samples, so there is nothing for the seeder's
-// production wait (decision_delay + adjustment_interval, against the real
-// Collector) to accomplish here.
+// and returns everything the receiver saw. SEED_SETTLE_WAIT and SEED_DURATION
+// are forced near zero: this receiver never samples, so there is nothing for
+// the seeder's production pacing and wait (against the real Collector's
+// adjustment_interval and decision_delay) to accomplish here.
 func runSeeder(t *testing.T) []receivedSpan {
+	t.Helper()
+	return runSeederWith(t, seedCount, 0)
+}
+
+func runSeederWith(t *testing.T, count int, duration time.Duration) []receivedSpan {
 	t.Helper()
 
 	lis, err := net.Listen("tcp", "127.0.0.1:0")
@@ -120,9 +127,9 @@ func runSeeder(t *testing.T) []receivedSpan {
 	cmd := exec.CommandContext(ctx, "go", "run", ".")
 	cmd.Env = append(os.Environ(),
 		"OTEL_EXPORTER_OTLP_ENDPOINT="+lis.Addr().String(),
-		fmt.Sprintf("SEED_COUNT=%d", seedCount),
+		fmt.Sprintf("SEED_COUNT=%d", count),
 		"SEED_SETTLE_WAIT=10ms",
-		"SEED_DURATION=0s",
+		"SEED_DURATION="+duration.String(),
 	)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
@@ -144,6 +151,36 @@ func TestSeedVolumeExceedsQueue(t *testing.T) {
 	if spans <= maxQueueSize {
 		t.Fatalf("test seeds %d requests (%d spans) against a %d-span queue; nothing would be dropped even without chunked flushing, so the delivery test proves nothing. Raise seedCount.",
 			seedCount, spans, maxQueueSize)
+	}
+}
+
+// TestSeeder_PacesEmissionOverDuration guards the pacing the per-route
+// sampling demo depends on (see internal/scenario's package comment). It
+// measures the spread of span start times rather than the command's wall
+// time, since go run's compile step would let a seeder that never sleeps
+// pass a wall-time check.
+func TestSeeder_PacesEmissionOverDuration(t *testing.T) {
+	const (
+		count    = 200
+		duration = 2 * time.Second
+	)
+	spans := runSeederWith(t, count, duration)
+	if len(spans) == 0 {
+		t.Fatal("received no spans")
+	}
+
+	first, last := spans[0].start, spans[0].start
+	for _, s := range spans {
+		if s.start.Before(first) {
+			first = s.start
+		}
+		if s.start.After(last) {
+			last = s.start
+		}
+	}
+	// The last request starts one spacing short of the full duration.
+	if want := duration * (count - 1) / count; last.Sub(first) < want {
+		t.Errorf("span start times span %s, want at least %s — the seeder isn't pacing emission over SEED_DURATION", last.Sub(first), want)
 	}
 }
 

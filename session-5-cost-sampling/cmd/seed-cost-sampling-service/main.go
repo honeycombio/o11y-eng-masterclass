@@ -1,16 +1,16 @@
 // seed-cost-sampling-service generates the Masterclass 5 dataset: a mostly-
 // healthy service with a skewed route distribution and a synthetic 15% error
 // rate, paced over real wall-clock time (not backdated, unlike session 4's
-// seeder) so
-// session-1's shared Collector actually makes a live tail-sampling decision
-// on each trace as it arrives. See internal/scenario for the scenario and
-// why its proportions are what they are, and
+// seeder) so session-1's shared Collector actually makes a live tail-sampling
+// decision on each trace as it arrives. See internal/scenario for the
+// scenario and why its proportions are what they are, and
 // ../../session-1-fundamentals/collector/otel-collector-config.yaml for the
 // adaptive_tail_sampling rules this dataset is built to exercise.
 //
 // Run this against the Collector from session-1-fundamentals/collector, same
 // as every other session, restarting it first so the sampler starts cold, and
-// within the saved queries' 30-minute window before going live.
+// no earlier than an hour before going live so the saved queries' 2-hour
+// window still covers it when the demo runs.
 package main
 
 import (

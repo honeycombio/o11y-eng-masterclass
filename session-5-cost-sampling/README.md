@@ -76,9 +76,11 @@ restarts the Collector before each seed.
 ## Pre-session checklist
 
 1. Apply the Terraform (two saved queries) — see
-   [`honeycomb-setup/`](honeycomb-setup). Any time beforehand.
+   [`honeycomb-setup/`](honeycomb-setup). Re-apply after pulling changes to
+   `query_window_seconds`; otherwise any time beforehand.
 
-2. Within 30 minutes of going live (the saved queries' window), restart the
+2. No earlier than an hour before going live (the saved queries' 2-hour
+   window has to still cover the seed ~26 minutes into the session), restart the
    Collector (Honeycomb's distro image, not plain contrib — see
    [`../session-1-fundamentals/collector`](../session-1-fundamentals/collector))
    so the sampler starts cold, then seed once:

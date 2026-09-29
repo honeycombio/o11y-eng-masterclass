@@ -33,8 +33,9 @@ no computed URL to output — see `outputs.tf` for why).
 
 Apply this before or after seeding — order doesn't matter, unlike session 4.
 There's no incident timestamp to thread through; both queries just read
-`var.query_window_seconds` (30 minutes) back from now, which is why the
-seeding itself has to happen within 30 minutes of going live.
+`var.query_window_seconds` (2 hours) back from now, which is why the seeding
+itself has to happen no earlier than an hour before going live. The window
+covers the ~26 minutes into the session where the demo queries it.
 
 ## What gets created
 
