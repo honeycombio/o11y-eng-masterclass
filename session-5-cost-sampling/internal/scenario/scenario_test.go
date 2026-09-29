@@ -2,7 +2,10 @@ package scenario
 
 import (
 	"math/rand"
+	"os"
+	"regexp"
 	"testing"
+	"time"
 )
 
 func generate(t *testing.T) (Config, []Request) {
@@ -122,5 +125,39 @@ func TestGenerate_RequestCountExceedsQueueMargin(t *testing.T) {
 	spans := cfg.RequestCount * 2
 	if spans <= defaultQueueSize*2 {
 		t.Fatalf("default config emits %d spans, not comfortably past the %d-span default queue; raise RequestCount", spans, defaultQueueSize)
+	}
+}
+
+// collectorConfig is the shared Collector config whose adaptive_tail_sampling
+// rules this dataset exercises.
+const collectorConfig = "../../../session-1-fundamentals/collector/otel-collector-config.yaml"
+
+// minAdjustmentIntervals is how many adjustment intervals Config.Duration must
+// span. The first interval is sampled flat (see the package comment), so four
+// keeps at least three quarters of the traffic on per-route rates.
+const minAdjustmentIntervals = 4
+
+// TestDefaultConfig_DurationSpansAdjustmentIntervals guards the pacing the
+// per-route demo depends on. It reads adjustment_interval from the real
+// Collector config rather than a copied constant, so lengthening the interval
+// there without lengthening Duration here fails CI instead of silently
+// reverting the live demo to a flat sample.
+func TestDefaultConfig_DurationSpansAdjustmentIntervals(t *testing.T) {
+	raw, err := os.ReadFile(collectorConfig)
+	if err != nil {
+		t.Fatalf("reading Collector config: %v", err)
+	}
+	match := regexp.MustCompile(`(?m)^\s*adjustment_interval:\s*(\S+)\s*$`).FindSubmatch(raw)
+	if match == nil {
+		t.Fatalf("no adjustment_interval in %s", collectorConfig)
+	}
+	interval, err := time.ParseDuration(string(match[1]))
+	if err != nil {
+		t.Fatalf("parsing adjustment_interval %q: %v", match[1], err)
+	}
+
+	cfg := DefaultConfig()
+	if want := minAdjustmentIntervals * interval; cfg.Duration < want {
+		t.Fatalf("Duration %s spans fewer than %d adjustment intervals of %s (want >= %s); most traffic would be sampled at the flat cold-start rate", cfg.Duration, minAdjustmentIntervals, interval, want)
 	}
 }

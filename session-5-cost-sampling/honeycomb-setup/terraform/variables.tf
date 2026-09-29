@@ -12,11 +12,12 @@ variable "dataset" {
 
 variable "query_window_seconds" {
   type        = number
-  default     = 1800 # 30m
+  default     = 7200 # 2h
   description = <<-EOT
-    Time range for both queries below. Wide enough to comfortably cover a
-    live seeding run (the default seed emits over roughly a minute, plus the
-    Collector's decision_delay and adjustment_interval settling time) without
-    reaching back far enough to pick up an unrelated previous run.
+    Time range for both queries below. Wide enough to cover a seed run
+    shortly before the session plus the ~26 minutes into the run of show
+    where the demo queries it, without reaching back far enough to pick up
+    an unrelated previous run. This is why the pre-session checklist seeds
+    once, no earlier than an hour before going live.
   EOT
 }

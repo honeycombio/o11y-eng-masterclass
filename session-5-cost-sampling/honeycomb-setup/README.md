@@ -33,7 +33,9 @@ no computed URL to output — see `outputs.tf` for why).
 
 Apply this before or after seeding — order doesn't matter, unlike session 4.
 There's no incident timestamp to thread through; both queries just read
-`var.query_window_seconds` back from now.
+`var.query_window_seconds` (2 hours) back from now, which is why the seeding
+itself has to happen no earlier than an hour before going live. The window
+covers the ~26 minutes into the session where the demo queries it.
 
 ## What gets created
 
@@ -43,9 +45,16 @@ There's no incident timestamp to thread through; both queries just read
    is physically stored. That gap, and the fact the two numbers still agree,
    is the entire demo.
 2. **`cost_sampling_by_route`** (query) — the same `COUNT()`, broken down by
-   `http.route`, sorted descending. Confirms the Collector's per-key
-   `adaptive_percentage` sampler kept `/api/admin/report`'s 1% share visible
-   rather than a single global rate swallowing it into noise.
+   `http.route`, sorted descending. Confirms `/api/admin/report`'s 1% share
+   is still visible after sampling.
+
+Neither query shows the *stored* side of the comparison. That needs Usage
+Mode (Usage page → Per-environment Breakdown → Usage Mode), where `COUNT()`
+is unweighted and `Sample Rate` is queryable, and saved queries here can't
+set it. Breaking down by `http.route` and `Sample Rate` there is what shows
+the per-key `adaptive_percentage` sampler at work: a flat rate plus
+keep-all-errors would also leave the 1% route visible in query 2, but
+wouldn't give it a different sample rate from `/api/search`.
 
 See [`../README.md`](../README.md) for the live demo run order and
 [`../../session-1-fundamentals/collector/otel-collector-config.yaml`](../../session-1-fundamentals/collector/otel-collector-config.yaml)

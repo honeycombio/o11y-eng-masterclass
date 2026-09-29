@@ -26,11 +26,28 @@
 // within a short, live seed, not to model realistic reliability.
 //
 // Unlike session 4's seeder, this dataset carries no backdated timestamps:
-// the emitter sends spans at real wall-clock time, paced over
+// the emitter sends spans at real wall-clock time, paced evenly over
 // Config.Duration, because the sampling decision this scenario demonstrates
 // happens downstream in the Collector as spans actually arrive — a
 // decision_delay window measured against fabricated history would not mean
 // anything.
+//
+// # Why the pacing matters
+//
+// The adaptive_percentage sampler (dynsampler-go's EMASampleRate) has no
+// per-key rates until its first adjustment_interval tick, and until then
+// returns the flat goal rate for every key. Emit the whole dataset in a burst
+// and every trace lands inside that first interval, so the demo would show a
+// flat 1-in-20 sample while the narration credits per-route fingerprinting.
+// Config.Duration therefore spans several adjustment intervals: only the
+// first interval's traffic is sampled flat, and the rest carries per-route
+// rates. TestDefaultConfig_DurationSpansAdjustmentIntervals enforces this
+// against the Collector config's own adjustment_interval.
+//
+// The sampler also keeps state across runs: a Collector that already saw a
+// previous seed starts from that run's rates, and routes it has no rate for
+// are kept at 1:1. The pre-session checklist restarts the Collector before
+// seeding so every run starts from the same cold state.
 //
 // # Why these numbers
 //
@@ -57,7 +74,10 @@
 // the same guard session 4 uses for the same reason.
 package scenario
 
-import "math/rand"
+import (
+	"math/rand"
+	"time"
+)
 
 // Route is one endpoint in the dataset, with its share of all requests.
 // Error status is an independent draw — see Generate — so Share is not
@@ -74,9 +94,13 @@ type Config struct {
 	RequestCount int
 	// ErrorRate is the fraction of requests marked errored at both spans.
 	ErrorRate float64
-	// Routes is the route distribution non-error selection draws from.
-	// Shares should sum to 1.0 — see TestDefaultConfig_RouteSharesSumToOne.
+	// Routes is the route distribution every request draws from, errored or
+	// not. Shares should sum to 1.0 — see TestDefaultConfig_RouteSharesSumToOne.
 	Routes []Route
+	// Duration is the wall-clock time the emitter spreads RequestCount
+	// requests over. See the package comment for why it must span several of
+	// the Collector's adjustment intervals.
+	Duration time.Duration
 }
 
 // DefaultConfig returns the tuned demo configuration described in the package
@@ -85,6 +109,7 @@ func DefaultConfig() Config {
 	return Config{
 		RequestCount: 5000,
 		ErrorRate:    0.15,
+		Duration:     90 * time.Second,
 		Routes: []Route{
 			{Path: "/api/search", Share: 0.85},
 			{Path: "/api/checkout", Share: 0.10},
