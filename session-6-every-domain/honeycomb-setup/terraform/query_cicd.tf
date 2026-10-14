@@ -123,7 +123,10 @@ resource "honeycombio_trigger" "cicd_build_p95" {
     op    = ">"
     value = var.cicd_build_p95_threshold_ms
   }
-  frequency = 300 # 5m, same cadence as session 4's trigger
+  # Honeycomb requires a trigger's query duration to be no more than 4x its
+  # frequency, so the 1h (cicd_burn_window_seconds) query needs frequency >=
+  # 900 — the floor, same as session 4's trigger.
+  frequency = 900
 
   recipient {
     type   = var.cicd_trigger_recipient_type
