@@ -19,9 +19,9 @@ import (
 	"time"
 
 	"github.com/honeycombio/o11y-eng-masterclass/session-6-every-domain/internal/llmscenario"
+	"github.com/honeycombio/o11y-eng-masterclass/session-6-every-domain/internal/otlpexport"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
 	"go.opentelemetry.io/otel/sdk/resource"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	semconv "go.opentelemetry.io/otel/semconv/v1.41.0"
@@ -100,15 +100,7 @@ func flush(ctx context.Context, provider *sdktrace.TracerProvider) error {
 }
 
 func setupTracing(ctx context.Context) (*sdktrace.TracerProvider, error) {
-	endpoint := os.Getenv("OTEL_EXPORTER_OTLP_ENDPOINT")
-	if endpoint == "" {
-		endpoint = "localhost:4317"
-	}
-
-	exporter, err := otlptracegrpc.New(ctx,
-		otlptracegrpc.WithEndpoint(endpoint),
-		otlptracegrpc.WithInsecure(),
-	)
+	exporter, err := otlpexport.New(ctx, os.Getenv("OTEL_EXPORTER_OTLP_ENDPOINT"))
 	if err != nil {
 		return nil, fmt.Errorf("creating OTLP exporter: %w", err)
 	}
